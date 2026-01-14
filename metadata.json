@@ -1,0 +1,5 @@
+{
+  "name": "ClinicFlow - Hybrid Scheduler",
+  "description": "A clinic room management system featuring hybrid scheduling (Fixed Shifts + One-Off Overrides) with RTL Hebrew interface.",
+  "requestFramePermissions": []
+}
