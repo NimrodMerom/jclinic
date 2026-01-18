@@ -44,7 +44,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       
       if (initialRoomId) setRoomId(initialRoomId);
       
-      if (therapists.length > 0 && !therapistId) {
+      if (therapists.length > 0) {
         setTherapistId(therapists[0].id);
       }
       
@@ -92,7 +92,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 text-right" dir="rtl">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="flex justify-between items-center p-4 border-b bg-gray-50">
           <h2 className="text-lg font-bold text-gray-800">הוספת שיבוץ ביומן</h2>
