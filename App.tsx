@@ -55,11 +55,21 @@ const App: React.FC = () => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date(getNextSunday()));
   const [viewMode, setViewMode] = useState<'day' | 'month'>('day');
   
-  const [fixedShifts, setFixedShifts] = useState<FixedShift[]>([]);
-  const [oneOffBookings, setOneOffBookings] = useState<OneOffBooking[]>([]);
-  const [therapists, setTherapists] = useState<Therapist[]>(INITIAL_THERAPISTS);
+  const [fixedShifts, setFixedShifts] = useState<FixedShift[]>(() => {
+    const saved = localStorage.getItem('clinic_fixed_shifts');
+    return saved ? JSON.parse(saved) : getInitialFixedShifts();
+  });
+  const [oneOffBookings, setOneOffBookings] = useState<OneOffBooking[]>(() => {
+    const saved = localStorage.getItem('clinic_one_off_bookings');
+    return saved ? JSON.parse(saved) : getInitialOneOffs();
+  });
+  const [therapists, setTherapists] = useState<Therapist[]>(() => {
+    const saved = localStorage.getItem('clinic_therapists');
+    return saved ? JSON.parse(saved) : INITIAL_THERAPISTS;
+  });
   
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalInitialData, setModalInitialData] = useState<{roomId?: string, time?: string}>({});
   const [isManagerOpen, setIsManagerOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isCloudOpen, setIsCloudOpen] = useState(false);
@@ -69,35 +79,38 @@ const App: React.FC = () => {
   const [selectedRoomId, setSelectedRoomId] = useState<string>('all');
   const [selectedTherapistId, setSelectedTherapistId] = useState<string>('all');
 
-  // Load Data Function
+  useEffect(() => {
+    localStorage.setItem('clinic_fixed_shifts', JSON.stringify(fixedShifts));
+  }, [fixedShifts]);
+
+  useEffect(() => {
+    localStorage.setItem('clinic_one_off_bookings', JSON.stringify(oneOffBookings));
+  }, [oneOffBookings]);
+
+  useEffect(() => {
+    localStorage.setItem('clinic_therapists', JSON.stringify(therapists));
+  }, [therapists]);
+
   const loadData = useCallback(async (silent = false) => {
+    if (!isCloudEnabled()) return;
     if (!silent) setIsLoading(true);
     try {
-      if (isCloudEnabled()) {
-        const [cloudTherapists, cloudFixed, cloudOneOffs] = await Promise.all([
-          db.getTherapists(),
-          db.getFixedShifts(),
-          db.getOneOffBookings()
-        ]);
-        
-        if (cloudTherapists.length > 0) setTherapists(cloudTherapists);
-        setFixedShifts(cloudFixed || []);
-        setOneOffBookings(cloudOneOffs || []);
-      } else {
-        // Load mock data only if not cloud and local state is empty
-        if (fixedShifts.length === 0 && oneOffBookings.length === 0) {
-          setFixedShifts(getInitialFixedShifts());
-          setOneOffBookings(getInitialOneOffs());
-        }
-      }
+      const [cloudTherapists, cloudFixed, cloudOneOffs] = await Promise.all([
+        db.getTherapists(),
+        db.getFixedShifts(),
+        db.getOneOffBookings()
+      ]);
+      
+      if (cloudTherapists.length > 0) setTherapists(cloudTherapists);
+      setFixedShifts(cloudFixed || []);
+      setOneOffBookings(cloudOneOffs || []);
     } catch (e) {
-      console.error("Error loading data:", e);
+      console.error("Error loading cloud data:", e);
     } finally {
       if (!silent) setIsLoading(false);
     }
-  }, [fixedShifts.length, oneOffBookings.length]);
+  }, []);
 
-  // Initial Connection & Magic Link Handler
   useEffect(() => {
     const handleMagicLink = () => {
       const params = new URLSearchParams(window.location.search);
@@ -105,10 +118,8 @@ const App: React.FC = () => {
       const keyParam = params.get('sb_key');
 
       if (urlParam && keyParam) {
-        // Save to LocalStorage and initialize Supabase
         initSupabase(decodeURIComponent(urlParam), decodeURIComponent(keyParam));
         setCloudActive(true);
-        // Remove params from URL to keep it clean and prevent re-init
         const newUrl = window.location.origin + window.location.pathname;
         window.history.replaceState({}, document.title, newUrl);
       }
@@ -125,77 +136,75 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, [loadData]);
 
-  // Handlers
   const handleAddFixed = async (shift: FixedShift) => {
     setFixedShifts(prev => [...prev, shift]);
-    if (isCloudEnabled()) await db.saveFixedShift(shift);
+    if (isCloudEnabled()) {
+      try { await db.saveFixedShift(shift); } catch (e) { console.error(e); }
+    }
   };
 
   const handleDeleteFixed = async (id: string) => {
     setFixedShifts(prev => prev.filter(s => s.id !== id));
-    if (isCloudEnabled()) await db.deleteFixedShift(id);
+    if (isCloudEnabled()) {
+      try { await db.deleteFixedShift(id); } catch (e) { console.error(e); }
+    }
   };
 
   const handleAddOneOff = async (booking: OneOffBooking) => {
     setOneOffBookings(prev => [...prev, booking]);
-    if (isCloudEnabled()) await db.saveOneOffBooking(booking);
+    if (isCloudEnabled()) {
+      try { await db.saveOneOffBooking(booking); } catch (e) { console.error(e); }
+    }
   };
 
   const handleDeleteOneOff = async (id: string) => {
     setOneOffBookings(prev => prev.filter(b => b.id !== id));
-    if (isCloudEnabled()) await db.deleteOneOffBooking(id);
+    if (isCloudEnabled()) {
+      try { await db.deleteOneOffBooking(id); } catch (e) { console.error(e); }
+    }
   };
 
   const handleAddTherapist = async (therapist: Therapist) => {
-    setTherapists(prev => [...prev, therapist]);
-    if (isCloudEnabled()) await db.saveTherapist(therapist);
+    setTherapists(prev => {
+      const exists = prev.find(t => t.id === therapist.id);
+      if (exists) return prev.map(t => t.id === therapist.id ? therapist : t);
+      return [...prev, therapist];
+    });
+    if (isCloudEnabled()) {
+      try { await db.saveTherapist(therapist); } catch (e) { console.error(e); }
+    }
   };
 
   const handleDeleteTherapist = async (id: string) => {
     setTherapists(prev => prev.filter(t => t.id !== id));
-    if (isCloudEnabled()) await db.deleteTherapist(id);
+    if (isCloudEnabled()) {
+      try { await db.deleteTherapist(id); } catch (e) { console.error(e); }
+    }
   };
 
-  const handleCloudConnected = () => {
-    setCloudActive(true);
-    loadData();
+  const handleSlotClick = (roomId?: string, time?: string) => {
+    setModalInitialData({ roomId, time });
+    setIsModalOpen(true);
   };
 
   const next = () => {
-    if (viewMode === 'day') {
-      setCurrentDate(addDays(currentDate, 1));
-    } else {
-      setCurrentDate(addMonths(currentDate, 1));
-    }
+    if (viewMode === 'day') setCurrentDate(addDays(currentDate, 1));
+    else setCurrentDate(addMonths(currentDate, 1));
   };
 
   const prev = () => {
-    if (viewMode === 'day') {
-      setCurrentDate(addDays(currentDate, -1));
-    } else {
-      setCurrentDate(addMonths(currentDate, -1));
-    }
+    if (viewMode === 'day') setCurrentDate(addDays(currentDate, -1));
+    else setCurrentDate(addMonths(currentDate, -1));
   };
 
   const goToToday = () => setCurrentDate(new Date());
 
-  // Filtering
-  const visibleRooms = selectedRoomId === 'all' 
-    ? ROOMS 
-    : ROOMS.filter(r => r.id === selectedRoomId);
-
-  const visibleFixedShifts = selectedTherapistId === 'all'
-    ? fixedShifts
-    : fixedShifts.filter(fs => fs.therapistId === selectedTherapistId);
-
-  const visibleOneOffs = selectedTherapistId === 'all'
-    ? oneOffBookings
-    : oneOffBookings.filter(ob => ob.therapistId === selectedTherapistId);
+  const visibleRooms = selectedRoomId === 'all' ? ROOMS : ROOMS.filter(r => r.id === selectedRoomId);
+  const visibleFixedShifts = selectedTherapistId === 'all' ? fixedShifts : fixedShifts.filter(fs => fs.therapistId === selectedTherapistId);
+  const visibleOneOffs = selectedTherapistId === 'all' ? oneOffBookings : oneOffBookings.filter(ob => ob.therapistId === selectedTherapistId);
 
   return (
     <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto font-sans text-gray-900">
-      
-      {/* Header */}
       <header className="mb-6 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div className="flex items-start justify-between">
           <div>
@@ -205,157 +214,98 @@ const App: React.FC = () => {
             </h1>
             <p className="text-gray-500 mt-1">ניהול חדרים היברידי (קבועים + חריגים)</p>
           </div>
-          
-          <button 
-            onClick={() => setIsCloudOpen(true)}
-            className={`xl:hidden p-3 rounded-full shadow-md transition-transform active:scale-95 ${cloudActive ? 'bg-green-600 text-white' : 'bg-orange-500 text-white'}`}
-          >
+          <button onClick={() => setIsCloudOpen(true)} className={`xl:hidden p-3 rounded-full shadow-md transition-transform active:scale-95 ${cloudActive ? 'bg-green-600 text-white' : 'bg-orange-500 text-white'}`}>
             {cloudActive ? <Cloud size={24} /> : <CloudOff size={24} />}
           </button>
         </div>
         
         <div className="flex flex-col md:flex-row gap-4 items-center w-full xl:w-auto">
           <div className="flex bg-gray-100 p-1 rounded-lg order-2 md:order-1">
-            <button 
-              onClick={() => setViewMode('day')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                viewMode === 'day' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <LayoutList size={16} />
-              יומי
+            <button onClick={() => setViewMode('day')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'day' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              <LayoutList size={16} /> יומי
             </button>
-            <button 
-              onClick={() => setViewMode('month')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                viewMode === 'month' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <LayoutGrid size={16} />
-              חודשי
+            <button onClick={() => setViewMode('month')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'month' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              <LayoutGrid size={16} /> חודשי
             </button>
           </div>
 
           <div className="flex items-center gap-2 w-full md:w-auto order-1 md:order-2">
-            <button
-              onClick={goToToday}
-              className="bg-white text-sm font-medium px-3 py-2.5 rounded-xl border border-gray-200 shadow-sm hover:bg-gray-50 text-indigo-600 transition-colors flex items-center gap-2"
-            >
-              <CalendarClock size={16} />
-              <span className="hidden sm:inline">היום</span>
+            <button onClick={goToToday} className="bg-white text-sm font-medium px-3 py-2.5 rounded-xl border border-gray-200 shadow-sm hover:bg-gray-50 text-indigo-600 transition-colors flex items-center gap-2">
+              <CalendarClock size={16} /> <span className="hidden sm:inline">היום</span>
             </button>
-
             <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl shadow-sm border border-gray-200 w-full md:w-auto justify-between md:justify-center flex-1">
-              <button onClick={prev} className="p-1.5 hover:bg-gray-100 rounded-lg text-indigo-600 transition">
-                <ChevronRight size={20} strokeWidth={2.5} />
-              </button>
-              
+              <button onClick={prev} className="p-1.5 hover:bg-gray-100 rounded-lg text-indigo-600 transition"><ChevronRight size={20} strokeWidth={2.5} /></button>
               <div className="text-center min-w-[140px] md:min-w-[200px]">
                 {viewMode === 'day' ? (
                   <div className="flex flex-col items-center">
                     <span className="text-xl md:text-2xl font-black text-gray-800 leading-none">{WEEK_DAYS_HE[currentDate.getDay()]}</span>
                     <span className="text-xs md:text-sm text-gray-500 font-medium">{formatDisplayDate(currentDate)}</span>
                   </div>
-                ) : (
-                  <span className="text-xl md:text-2xl font-black text-gray-800">{formatMonthYear(currentDate)}</span>
-                )}
+                ) : <span className="text-xl md:text-2xl font-black text-gray-800">{formatMonthYear(currentDate)}</span>}
               </div>
-
-              <button onClick={next} className="p-1.5 hover:bg-gray-100 rounded-lg text-indigo-600 transition">
-                <ChevronLeft size={20} strokeWidth={2.5} />
-              </button>
+              <button onClick={next} className="p-1.5 hover:bg-gray-100 rounded-lg text-indigo-600 transition"><ChevronLeft size={20} strokeWidth={2.5} /></button>
             </div>
           </div>
         </div>
 
         <div className="flex gap-2 w-full xl:w-auto justify-end flex-wrap">
-          <button 
-            onClick={() => setIsCloudOpen(true)}
-            className={`hidden xl:flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all border shadow-sm ${
-              cloudActive 
-                ? 'bg-green-600 border-green-700 text-white hover:bg-green-700' 
-                : 'bg-orange-500 border-orange-600 text-white hover:bg-orange-600'
-            }`}
-          >
-            {cloudActive ? <Cloud size={18} /> : <CloudOff size={18} />}
-            {cloudActive ? 'מסונכרן' : 'התחבר לענן'}
+          <button onClick={() => setIsCloudOpen(true)} className={`hidden xl:flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all border shadow-sm ${cloudActive ? 'bg-green-600 border-green-700 text-white hover:bg-green-700' : 'bg-orange-500 border-orange-600 text-white hover:bg-orange-600'}`}>
+            {cloudActive ? <Cloud size={18} /> : <CloudOff size={18} />} {cloudActive ? 'מסונכרן' : 'התחבר לענן'}
           </button>
-
           <button onClick={() => setIsReportOpen(true)} className="bg-white text-indigo-700 border border-indigo-200 px-3 py-3 rounded-lg font-medium hover:bg-indigo-50 transition-all flex items-center gap-2 shadow-sm">
-            <Calculator size={18} />
-            <span className="hidden md:inline">דוח תשלומים</span>
+            <Calculator size={18} /> <span className="hidden md:inline">דוח תשלומים</span>
           </button>
-
           <button onClick={() => setIsManagerOpen(true)} className="bg-white text-gray-700 border border-gray-300 px-3 py-3 rounded-lg font-medium hover:bg-gray-50 transition-all flex items-center gap-2 shadow-sm">
-            <Settings size={18} />
-            <span className="hidden md:inline">מטפלים</span>
+            <Settings size={18} /> <span className="hidden md:inline">מטפלים</span>
           </button>
-          
-          <button onClick={() => setIsModalOpen(true)} className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-medium shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center gap-2">
-            <CalendarIcon size={18} />
-            שיבוץ חדש
+          <button onClick={() => handleSlotClick()} className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-medium shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center gap-2">
+            <CalendarIcon size={18} /> שיבוץ חדש
           </button>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="space-y-6">
         <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center">
           <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-200 flex flex-col md:flex-row gap-3 items-center flex-1">
-            <div className="flex items-center gap-2 text-gray-500 font-medium text-sm pl-2">
-              <Filter size={18} />
-              <span>סינון:</span>
-            </div>
-            
+            <div className="flex items-center gap-2 text-gray-500 font-medium text-sm pl-2"><Filter size={18} /> <span>סינון:</span></div>
             <select value={selectedRoomId} onChange={(e) => setSelectedRoomId(e.target.value)} className="bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-md focus:ring-indigo-500 block w-full p-2">
               <option value="all">כל החדרים</option>
-              {ROOMS.map(room => (
-                <option key={room.id} value={room.id}>{room.name}</option>
-              ))}
+              {ROOMS.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}
             </select>
-
             <select value={selectedTherapistId} onChange={(e) => setSelectedTherapistId(e.target.value)} className="bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-md focus:ring-indigo-500 block w-full p-2">
               <option value="all">כל המטפלים</option>
-              {therapists.map(t => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
+              {therapists.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </div>
-
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-3 md:max-w-xl">
             <Info className="text-blue-500 flex-shrink-0" size={20} />
-            <div className="text-xs text-blue-800">
-              {cloudActive ? 'הנתונים מסונכרנים בזמן אמת לענן.' : 'עבודה במצב מקומי. הנתונים נשמרים בדפדפן בלבד.'}
-            </div>
+            <div className="text-xs text-blue-800">{cloudActive ? 'הנתונים מסונכרנים בזמן אמת לענן.' : 'עבודה במצב מקומי. הנתונים נשמרים בדפדפן בלבד.'}</div>
           </div>
         </div>
 
         <div className="h-[650px]">
           <Calendar 
-            currentDate={currentDate}
-            viewMode={viewMode}
-            onViewChange={setViewMode}
-            onDateSelect={setCurrentDate}
-            fixedShifts={visibleFixedShifts}
-            oneOffBookings={visibleOneOffs}
-            rooms={visibleRooms}
-            therapists={therapists}
-            onSlotClick={() => setIsModalOpen(true)}
-            onDeleteEvent={(id, type) => {
-              if (type === 'fixed') handleDeleteFixed(id);
-              else handleDeleteOneOff(id);
-            }}
+            currentDate={currentDate} viewMode={viewMode} onViewChange={setViewMode} onDateSelect={setCurrentDate}
+            fixedShifts={visibleFixedShifts} oneOffBookings={visibleOneOffs} rooms={visibleRooms} therapists={therapists}
+            onSlotClick={handleSlotClick}
+            onDeleteEvent={(id, type) => type === 'fixed' ? handleDeleteFixed(id) : handleDeleteOneOff(id)}
           />
         </div>
-
         <SchemaDocs />
       </main>
 
-      <BookingModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onAddFixed={handleAddFixed} onAddOneOff={handleAddOneOff} initialDate={formatIsoDate(currentDate)} therapists={therapists} />
+      <BookingModal 
+        isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} 
+        onAddFixed={handleAddFixed} onAddOneOff={handleAddOneOff} 
+        initialDate={formatIsoDate(currentDate)} 
+        initialTime={modalInitialData.time}
+        initialRoomId={modalInitialData.roomId}
+        therapists={therapists} 
+      />
       <TherapistManager isOpen={isManagerOpen} onClose={() => setIsManagerOpen(false)} therapists={therapists} onAddTherapist={handleAddTherapist} onDeleteTherapist={handleDeleteTherapist} />
       <PaymentsReport isOpen={isReportOpen} onClose={() => setIsReportOpen(false)} rooms={ROOMS} therapists={therapists} fixedShifts={fixedShifts} oneOffBookings={oneOffBookings} currentDate={currentDate} />
       <Assistant rooms={ROOMS} therapists={therapists} fixedShifts={fixedShifts} oneOffBookings={oneOffBookings} currentDate={currentDate} />
-      <CloudSetup isOpen={isCloudOpen} onClose={() => setIsCloudOpen(false)} onConnected={handleCloudConnected} />
+      <CloudSetup isOpen={isCloudOpen} onClose={() => setIsCloudOpen(false)} onConnected={loadData} />
     </div>
   );
 };
