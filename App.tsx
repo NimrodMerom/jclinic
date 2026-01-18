@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Calendar } from './components/Calendar';
 import { BookingModal } from './components/BookingModal';
 import { SchemaDocs } from './components/SchemaDocs';
@@ -79,6 +79,9 @@ const App: React.FC = () => {
   const [selectedRoomId, setSelectedRoomId] = useState<string>('all');
   const [selectedTherapistId, setSelectedTherapistId] = useState<string>('all');
 
+  // Ref to track the last time we performed a local write to prevent immediate sync overwrites
+  const lastWriteTime = useRef<number>(0);
+
   useEffect(() => {
     localStorage.setItem('clinic_fixed_shifts', JSON.stringify(fixedShifts));
   }, [fixedShifts]);
@@ -93,6 +96,13 @@ const App: React.FC = () => {
 
   const loadData = useCallback(async (silent = false) => {
     if (!isCloudEnabled()) return;
+    
+    // CRITICAL FIX: If we just performed a local action, don't overwrite the screen with 
+    // potentially stale cloud data for 3 seconds.
+    if (silent && Date.now() - lastWriteTime.current < 3000) {
+      return;
+    }
+
     if (!silent) setIsLoading(true);
     try {
       const [cloudTherapists, cloudFixed, cloudOneOffs] = await Promise.all([
@@ -101,9 +111,9 @@ const App: React.FC = () => {
         db.getOneOffBookings()
       ]);
       
-      if (cloudTherapists.length > 0) setTherapists(cloudTherapists);
-      setFixedShifts(cloudFixed || []);
-      setOneOffBookings(cloudOneOffs || []);
+      if (cloudTherapists && cloudTherapists.length > 0) setTherapists(cloudTherapists);
+      if (cloudFixed) setFixedShifts(cloudFixed);
+      if (cloudOneOffs) setOneOffBookings(cloudOneOffs);
     } catch (e) {
       console.error("Error loading cloud data:", e);
     } finally {
@@ -137,6 +147,7 @@ const App: React.FC = () => {
   }, [loadData]);
 
   const handleAddFixed = async (shift: FixedShift) => {
+    lastWriteTime.current = Date.now();
     setFixedShifts(prev => [...prev, shift]);
     if (isCloudEnabled()) {
       try { await db.saveFixedShift(shift); } catch (e) { console.error(e); }
@@ -144,6 +155,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteFixed = async (id: string) => {
+    lastWriteTime.current = Date.now();
     setFixedShifts(prev => prev.filter(s => s.id !== id));
     if (isCloudEnabled()) {
       try { await db.deleteFixedShift(id); } catch (e) { console.error(e); }
@@ -151,6 +163,7 @@ const App: React.FC = () => {
   };
 
   const handleAddOneOff = async (booking: OneOffBooking) => {
+    lastWriteTime.current = Date.now();
     setOneOffBookings(prev => [...prev, booking]);
     if (isCloudEnabled()) {
       try { await db.saveOneOffBooking(booking); } catch (e) { console.error(e); }
@@ -158,6 +171,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteOneOff = async (id: string) => {
+    lastWriteTime.current = Date.now();
     setOneOffBookings(prev => prev.filter(b => b.id !== id));
     if (isCloudEnabled()) {
       try { await db.deleteOneOffBooking(id); } catch (e) { console.error(e); }
@@ -165,6 +179,7 @@ const App: React.FC = () => {
   };
 
   const handleAddTherapist = async (therapist: Therapist) => {
+    lastWriteTime.current = Date.now();
     setTherapists(prev => {
       const exists = prev.find(t => t.id === therapist.id);
       if (exists) return prev.map(t => t.id === therapist.id ? therapist : t);
@@ -176,6 +191,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteTherapist = async (id: string) => {
+    lastWriteTime.current = Date.now();
     setTherapists(prev => prev.filter(t => t.id !== id));
     if (isCloudEnabled()) {
       try { await db.deleteTherapist(id); } catch (e) { console.error(e); }
