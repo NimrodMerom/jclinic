@@ -81,6 +81,12 @@ const App: React.FC = () => {
   const [selectedTherapistId, setSelectedTherapistId] = useState<string>('all');
 
   const lastWriteTime = useRef<number>(0);
+  const therapistsRef = useRef(therapists);
+
+  useEffect(() => {
+    therapistsRef.current = therapists;
+    localStorage.setItem('clinic_therapists', JSON.stringify(therapists));
+  }, [therapists]);
 
   useEffect(() => {
     localStorage.setItem('clinic_fixed_shifts', JSON.stringify(fixedShifts));
@@ -90,40 +96,32 @@ const App: React.FC = () => {
     localStorage.setItem('clinic_one_off_bookings', JSON.stringify(oneOffBookings));
   }, [oneOffBookings]);
 
-  useEffect(() => {
-    localStorage.setItem('clinic_therapists', JSON.stringify(therapists));
-  }, [therapists]);
-
   const loadData = useCallback(async (silent = false) => {
     if (!isCloudEnabled()) return;
-    if (silent && Date.now() - lastWriteTime.current < 5000) return;
+    if (silent && Date.now() - lastWriteTime.current < 4000) return;
 
     if (!silent) setIsLoading(true);
     try {
-      const [cloudTherapists, cloudFixed, cloudOneOffs] = await Promise.all([
-        db.getTherapists(),
-        db.getFixedShifts(),
-        db.getOneOffBookings()
-      ]);
-      
+      const cloudTherapists = await db.getTherapists();
       if (cloudTherapists && cloudTherapists.length > 0) {
         setTherapists(cloudTherapists);
-      } else if (therapists.length > 0) {
-        // Initial sync: Cloud is empty but we have local therapists
-        console.log("Syncing therapists to new cloud...");
-        for (const t of therapists) {
-          await db.saveTherapist(t);
-        }
+      } else if (therapistsRef.current.length > 0) {
+        for (const t of therapistsRef.current) { await db.saveTherapist(t); }
       }
 
-      setFixedShifts(cloudFixed || []);
-      setOneOffBookings(cloudOneOffs || []);
+      const cloudFixed = await db.getFixedShifts();
+      const cloudOneOffs = await db.getOneOffBookings();
+      
+      // Update only if we got valid data to prevent clearing UI on server error
+      if (Array.isArray(cloudFixed)) setFixedShifts(cloudFixed);
+      if (Array.isArray(cloudOneOffs)) setOneOffBookings(cloudOneOffs);
+
     } catch (e: any) {
       console.error("Cloud load failed:", e);
     } finally {
       if (!silent) setIsLoading(false);
     }
-  }, [therapists]);
+  }, []);
 
   useEffect(() => {
     const handleMagicLink = () => {
@@ -157,16 +155,14 @@ const App: React.FC = () => {
     
     if (isCloudEnabled()) {
       try { 
-        // Ensure therapist exists in DB first
-        const therapist = therapists.find(t => t.id === shift.therapistId);
+        const therapist = therapistsRef.current.find(t => t.id === shift.therapistId);
         if (therapist) await db.saveTherapist(therapist);
-        
         await db.saveFixedShift(shift); 
       } catch (e: any) { 
         console.error("Save failed:", e);
         setErrorMsg(e.message);
         setFixedShifts(original); 
-        setTimeout(() => setErrorMsg(null), 6000);
+        setTimeout(() => setErrorMsg(null), 8000);
       }
     }
   };
@@ -178,16 +174,14 @@ const App: React.FC = () => {
     
     if (isCloudEnabled()) {
       try { 
-        // Ensure therapist exists in DB first
-        const therapist = therapists.find(t => t.id === booking.therapistId);
+        const therapist = therapistsRef.current.find(t => t.id === booking.therapistId);
         if (therapist) await db.saveTherapist(therapist);
-        
         await db.saveOneOffBooking(booking); 
       } catch (e: any) { 
         console.error("Save failed:", e);
         setErrorMsg(e.message);
         setOneOffBookings(original);
-        setTimeout(() => setErrorMsg(null), 6000);
+        setTimeout(() => setErrorMsg(null), 8000);
       }
     }
   };
@@ -272,9 +266,9 @@ const App: React.FC = () => {
           <div className="bg-red-600 text-white px-8 py-4 rounded-2xl shadow-2xl flex flex-col gap-1 border-4 border-red-400">
             <div className="flex items-center gap-3 font-black">
                <AlertTriangle size={24} />
-               <span className="text-lg">השמירה נכשלה</span>
+               <span className="text-lg">השמירה נכשלה בשרת</span>
             </div>
-            <span className="text-xs font-medium opacity-90 dir-ltr text-left">{errorMsg}</span>
+            <span className="text-xs font-mono opacity-90 dir-ltr text-left bg-black/10 p-2 rounded">{errorMsg}</span>
           </div>
         </div>
       )}
