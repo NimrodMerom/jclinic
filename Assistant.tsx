@@ -1,7 +1,7 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { GoogleGenAI } from "@google/genai";
-import { MessageSquare, Send, X, Loader2, AlertCircle, ExternalLink, Key } from 'lucide-react';
+import { MessageSquare, Send, X, Loader2, AlertCircle } from 'lucide-react';
 import { FixedShift, OneOffBooking, Room, Therapist } from '../types';
 import { mergeSchedules } from '../utils/schedulerLogic';
 
@@ -33,14 +33,6 @@ export const Assistant: React.FC<AssistantProps> = ({
   const [response, setResponse] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [manualKey, setManualKey] = useState(localStorage.getItem('gemini_api_key') || '');
-  const [showKeyInput, setShowKeyInput] = useState(false);
-
-  useEffect(() => {
-    if (manualKey) {
-      localStorage.setItem('gemini_api_key', manualKey);
-    }
-  }, [manualKey]);
 
   const getContext = () => {
     const events = mergeSchedules(rooms, fixedShifts, oneOffBookings, currentDate);
@@ -62,21 +54,13 @@ export const Assistant: React.FC<AssistantProps> = ({
   const handleAsk = async () => {
     if (!query.trim()) return;
     
-    // Check both environment and manual entry
-    const apiKey = (process.env.API_KEY && process.env.API_KEY.length > 5) ? process.env.API_KEY : manualKey;
-
-    if (!apiKey || apiKey.length < 5) {
-      setError("חסר מפתח API. כדי להפעיל את העוזר, יש להזין מפתח בתיבת ההגדרות (סמל המפתח).");
-      setShowKeyInput(true);
-      return;
-    }
-
     setLoading(true);
     setResponse(null);
     setError(null);
 
     try {
-      const ai = new GoogleGenAI({ apiKey });
+      // Use process.env.API_KEY directly. Assume it is pre-configured and valid.
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const context = getContext();
       
       const result = await ai.models.generateContent({
@@ -101,7 +85,7 @@ export const Assistant: React.FC<AssistantProps> = ({
       setResponse(result.text);
     } catch (err: any) {
       console.error(err);
-      setError("שגיאת תקשורת. ייתכן שמפתח ה-API לא תקין או שאין גישה לשירות.");
+      setError("שגיאת תקשורת. ייתכן שאין גישה לשירות ברגע זה.");
     } finally {
       setLoading(false);
     }
@@ -125,49 +109,12 @@ export const Assistant: React.FC<AssistantProps> = ({
               <MessageSquare size={18} />
               עוזר שיבוץ חכם
             </h3>
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={() => setShowKeyInput(!showKeyInput)} 
-                className={`p-1.5 rounded-lg hover:bg-indigo-500 transition-colors ${manualKey ? 'text-green-300' : 'text-white'}`}
-                title="הגדרת מפתח"
-              >
-                <Key size={16} />
-              </button>
-              <button onClick={() => setIsOpen(false)} className="hover:bg-indigo-500 rounded p-1">
-                <X size={18} />
-              </button>
-            </div>
+            <button onClick={() => setIsOpen(false)} className="hover:bg-indigo-500 rounded p-1">
+              <X size={18} />
+            </button>
           </div>
           
           <div className="p-4 h-80 overflow-y-auto bg-gray-50 text-sm space-y-3">
-             {showKeyInput && (
-               <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 mb-2 animate-in fade-in duration-200">
-                 <p className="text-[10px] font-black text-amber-800 mb-2 uppercase tracking-wider">הגדרת API Key (Gemini):</p>
-                 <input 
-                   type="password"
-                   value={manualKey}
-                   onChange={(e) => setManualKey(e.target.value)}
-                   placeholder="הדביקי את המפתח כאן..."
-                   className="w-full p-2.5 border border-amber-300 rounded-lg text-xs mb-3 outline-none focus:ring-2 focus:ring-amber-500"
-                 />
-                 <div className="flex justify-between items-center">
-                   <button 
-                    onClick={() => setShowKeyInput(false)}
-                    className="text-xs bg-amber-600 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-amber-700 transition-colors"
-                   >
-                     שמירה
-                   </button>
-                   <a 
-                    href="https://aistudio.google.com/app/apikey" 
-                    target="_blank" 
-                    className="text-[10px] text-indigo-600 font-bold underline flex items-center gap-1"
-                   >
-                     לקבלת מפתח בחינם <ExternalLink size={10} />
-                   </a>
-                 </div>
-               </div>
-             )}
-
              {error && (
                <div className="bg-red-50 p-3 rounded-xl border border-red-100 text-red-700 flex items-start gap-2 animate-in shake">
                  <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
@@ -179,7 +126,7 @@ export const Assistant: React.FC<AssistantProps> = ({
                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-gray-800 leading-relaxed whitespace-pre-wrap animate-in fade-in slide-in-from-top-1">
                  {response}
                </div>
-             ) : !error && !showKeyInput && (
+             ) : !error && (
                <div className="text-gray-400 text-center mt-16 italic">
                  איך אוכל לעזור לך עם הלו"ז היום?
                </div>
@@ -203,7 +150,7 @@ export const Assistant: React.FC<AssistantProps> = ({
             />
             <button 
               onClick={handleAsk}
-              disabled={loading || (!manualKey && (!process.env.API_KEY || process.env.API_KEY === ''))}
+              disabled={loading}
               className="bg-indigo-600 text-white p-2.5 rounded-full hover:bg-indigo-700 disabled:opacity-40 transition-all shadow-lg active:scale-90"
             >
               <Send size={18} />
