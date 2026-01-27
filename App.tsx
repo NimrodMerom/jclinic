@@ -81,6 +81,7 @@ const App: React.FC = () => {
   const [selectedRoomId, setSelectedRoomId] = useState<string>('all');
   const [selectedTherapistId, setSelectedTherapistId] = useState<string>('all');
 
+  // שימוש ב-Ref כדי למנוע דריסה של הנתונים בזמן שאנחנו מבצעים פעולת כתיבה
   const syncLockRef = useRef<number>(0);
   const therapistsRef = useRef(therapists);
 
@@ -99,7 +100,12 @@ const App: React.FC = () => {
 
   const loadData = useCallback(async (silent = false) => {
     if (!isCloudEnabled()) return;
-    if (silent && Date.now() - syncLockRef.current < 4000) return;
+    
+    // אם עשינו שינוי לא מזמן, אל תטען נתונים מהשרת כדי שלא נדרוס את מה שכתבנו
+    if (silent && Date.now() - syncLockRef.current < 5000) {
+      console.log("Sync skipped due to recent local change");
+      return;
+    }
 
     if (!silent) setIsLoading(true);
     try {
@@ -141,8 +147,6 @@ const App: React.FC = () => {
       } catch (e: any) { 
         setErrorMsg(e.message);
         setSyncWarning(true);
-        // אנחנו לא מוחקים את הנתון מהמסך! הוא נשאר מקומית.
-        setTimeout(() => setErrorMsg(null), 10000);
       }
     }
   };
@@ -159,7 +163,6 @@ const App: React.FC = () => {
       } catch (e: any) { 
         setErrorMsg(e.message);
         setSyncWarning(true);
-        setTimeout(() => setErrorMsg(null), 10000);
       }
     }
   };
@@ -235,26 +238,31 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto font-sans text-gray-900">
-      {/* התראת שגיאה קריטית */}
+      {/* התראת שגיאה קריטית - לא נעלמת אוטומטית עד שמתקנים */}
       {errorMsg && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-lg">
           <div className="bg-red-600 text-white p-5 rounded-2xl shadow-2xl border-2 border-red-400 flex flex-col gap-3 animate-in slide-in-from-top-4">
             <div className="flex items-center gap-3">
               <AlertTriangle size={28} className="animate-pulse" />
-              <div className="font-bold text-lg">שגיאת סנכרון לענן</div>
+              <div className="font-bold text-lg">שגיאת סנכרון (42501 / 403)</div>
             </div>
             <div className="bg-red-700/40 p-3 rounded-lg text-sm font-mono break-all" dir="ltr">{errorMsg}</div>
-            <p className="text-xs font-medium">השיבוץ נשמר במכשיר שלך אך <strong>לא נשמר בענן</strong>. ודאי שהרצת את קוד ה-SQL המלא (כולל ה-GRANT) ב-Supabase.</p>
-            <button onClick={() => setErrorMsg(null)} className="self-end text-xs bg-white/20 px-3 py-1 rounded-full hover:bg-white/30 transition">סגור</button>
+            <p className="text-xs font-medium">
+              הנתונים לא נשמרים בענן בגלל חוסר בהרשאות GRANT. 
+              <strong>חובה להעתיק את קוד ה-SQL החדש מתחתית הדף ולהריץ אותו ב-Supabase SQL Editor.</strong>
+            </p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => { setErrorMsg(null); loadData(); }} className="text-xs bg-white text-red-600 px-4 py-2 rounded-full font-bold hover:bg-gray-100 transition">נסה שוב</button>
+              <button onClick={() => setErrorMsg(null)} className="text-xs bg-white/20 px-4 py-2 rounded-full hover:bg-white/30 transition">סגור</button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* הודעת סטטוס קטנה כשהסנכרון לא תקין */}
       {syncWarning && !errorMsg && (
         <div className="fixed bottom-24 right-6 z-40 bg-orange-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 animate-bounce">
           <WifiOff size={18} />
-          <span className="text-xs font-bold uppercase tracking-tight">עובד מקומית - הסנכרון לענן נכשל</span>
+          <span className="text-xs font-bold uppercase tracking-tight">שגיאת סנכרון - בדקי הרשאות SQL</span>
         </div>
       )}
 
