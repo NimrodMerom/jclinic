@@ -54,28 +54,29 @@ export const subscribeToChanges = (onUpdate: () => void) => {
 
 const handleSupabaseError = (error: any, context: string) => {
   console.error(`Supabase Error [${context}]:`, error);
-  // Throw a user-friendly message
-  if (error.code === '42501') throw new Error('שגיאת הרשאות (RLS). יש להריץ את פקודות ה-SECURITY בקוד ה-SQL.');
-  if (error.code === '23P01') throw new Error('שגיאת חפיפה: החדר כבר תפוס בזמן זה.');
-  if (error.code === '42P01') throw new Error('הטבלה לא קיימת בבסיס הנתונים. יש להריץ את קוד ה-SQL ב-Supabase.');
-  throw error;
+  if (error.code === '42501') throw new Error('שגיאת הרשאות. יש לוודא שביצעת Disable RLS ב-Supabase.');
+  if (error.code === '23P01') throw new Error('החדר תפוס בשעות אלו (חפיפה ביומן).');
+  if (error.code === 'PGRST116') return null; // Not found is okay sometimes
+  throw new Error(`שגיאת תקשורת: ${error.message || error.code}`);
 };
 
 export const db = {
   async getTherapists(): Promise<Therapist[]> {
     if (!supabase) return [];
-    const { data, error } = await supabase.from('therapists').select('*');
-    if (error) return [];
-    return data.map(t => ({
-      id: t.id,
-      name: t.name,
-      color: t.color,
-      phone: t.phone,
-      email: t.email,
-      paymentType: (t.payment_type as PaymentType) || 'hourly',
-      fixedShiftRate: t.fixed_shift_rate,
-      oneOffRate: t.one_off_rate
-    }));
+    try {
+      const { data, error } = await supabase.from('therapists').select('*');
+      if (error) throw error;
+      return data.map(t => ({
+        id: t.id,
+        name: t.name,
+        color: t.color,
+        phone: t.phone,
+        email: t.email,
+        paymentType: (t.payment_type as PaymentType) || 'hourly',
+        fixedShiftRate: t.fixed_shift_rate,
+        oneOffRate: t.one_off_rate
+      }));
+    } catch (e) { return []; }
   },
 
   async saveTherapist(t: Therapist) {
@@ -101,16 +102,18 @@ export const db = {
 
   async getFixedShifts(): Promise<FixedShift[]> {
     if (!supabase) return [];
-    const { data, error } = await supabase.from('fixed_shifts').select('*');
-    if (error) return [];
-    return data.map(s => ({
-      id: s.id,
-      therapistId: s.therapist_id,
-      roomId: s.room_id,
-      dayOfWeek: s.day_of_week,
-      startTime: s.start_time,
-      endTime: s.end_time
-    }));
+    try {
+      const { data, error } = await supabase.from('fixed_shifts').select('*');
+      if (error) throw error;
+      return data.map(s => ({
+        id: s.id,
+        therapistId: s.therapist_id,
+        roomId: s.room_id,
+        dayOfWeek: s.day_of_week,
+        startTime: s.start_time,
+        endTime: s.end_time
+      }));
+    } catch (e) { return []; }
   },
 
   async saveFixedShift(s: FixedShift) {
@@ -134,17 +137,19 @@ export const db = {
 
   async getOneOffBookings(): Promise<OneOffBooking[]> {
     if (!supabase) return [];
-    const { data, error } = await supabase.from('one_off_bookings').select('*');
-    if (error) return [];
-    return data.map(b => ({
-      id: b.id,
-      therapistId: b.therapist_id,
-      roomId: b.room_id,
-      date: b.date,
-      startTime: b.start_time,
-      endTime: b.end_time,
-      type: b.type
-    }));
+    try {
+      const { data, error } = await supabase.from('one_off_bookings').select('*');
+      if (error) throw error;
+      return data.map(b => ({
+        id: b.id,
+        therapistId: b.therapist_id,
+        roomId: b.room_id,
+        date: b.date,
+        startTime: b.start_time,
+        endTime: b.end_time,
+        type: b.type
+      }));
+    } catch (e) { return []; }
   },
 
   async saveOneOffBooking(b: OneOffBooking) {
