@@ -52,12 +52,22 @@ export const subscribeToChanges = (onUpdate: () => void) => {
   };
 };
 
+// Helper to ensure time is in HH:MM:SS format for Postgres
+const formatTimeForDb = (time: string) => {
+  if (!time) return '00:00:00';
+  return time.split(':').length === 2 ? `${time}:00` : time;
+};
+
 const handleSupabaseError = (error: any, context: string) => {
   console.error(`Supabase Error [${context}]:`, error);
-  if (error.code === '42501') throw new Error('שגיאת הרשאות. יש לוודא שביצעת Disable RLS ב-Supabase.');
-  if (error.code === '23P01') throw new Error('החדר תפוס בשעות אלו (חפיפה ביומן).');
-  if (error.code === 'PGRST116') return null; // Not found is okay sometimes
-  throw new Error(`שגיאת תקשורת: ${error.message || error.code}`);
+  const msg = error.message || error.code || 'Unknown Error';
+  const detail = error.details || '';
+  
+  if (error.code === '42501') throw new Error('שגיאת הרשאות (RLS). וודא שהרצת את ה-SQL החדש.');
+  if (error.code === '22P02') throw new Error('פורמט נתונים שגוי. פנה לתמיכה.');
+  if (error.code === '23503') throw new Error('המטפל לא קיים במסד הנתונים.');
+  
+  throw new Error(`${msg} ${detail}`);
 };
 
 export const db = {
@@ -110,8 +120,8 @@ export const db = {
         therapistId: s.therapist_id,
         roomId: s.room_id,
         dayOfWeek: s.day_of_week,
-        startTime: s.start_time,
-        endTime: s.end_time
+        startTime: s.start_time.substring(0, 5),
+        endTime: s.end_time.substring(0, 5)
       }));
     } catch (e) { return []; }
   },
@@ -123,8 +133,8 @@ export const db = {
       therapist_id: s.therapistId,
       room_id: s.roomId,
       day_of_week: s.dayOfWeek,
-      start_time: s.startTime,
-      end_time: s.endTime
+      start_time: formatTimeForDb(s.startTime),
+      end_time: formatTimeForDb(s.endTime)
     });
     if (error) handleSupabaseError(error, 'saveFixedShift');
   },
@@ -145,8 +155,8 @@ export const db = {
         therapistId: b.therapist_id,
         roomId: b.room_id,
         date: b.date,
-        startTime: b.start_time,
-        endTime: b.end_time,
+        startTime: b.start_time.substring(0, 5),
+        endTime: b.end_time.substring(0, 5),
         type: b.type
       }));
     } catch (e) { return []; }
@@ -159,8 +169,8 @@ export const db = {
       therapist_id: b.therapistId,
       room_id: b.roomId,
       date: b.date,
-      start_time: b.startTime,
-      end_time: b.endTime,
+      start_time: formatTimeForDb(b.startTime),
+      end_time: formatTimeForDb(b.endTime),
       type: b.type || 'booking'
     });
     if (error) handleSupabaseError(error, 'saveOneOffBooking');
