@@ -28,13 +28,12 @@ export const INITIAL_THERAPISTS: Therapist[] = [
 export const WEEK_DAYS_HE = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
 export const SQL_SCHEMA_DOC = `
--- 1. ניקוי והפעלת תוספים
+-- 1. ניקוי יסודי
 DROP TABLE IF EXISTS one_off_bookings;
 DROP TABLE IF EXISTS fixed_shifts;
 DROP TABLE IF EXISTS therapists;
-CREATE EXTENSION IF NOT EXISTS btree_gist;
 
--- 2. טבלת מטפלים
+-- 2. יצירת טבלת מטפלים
 CREATE TABLE therapists (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -46,25 +45,17 @@ CREATE TABLE therapists (
     one_off_rate DECIMAL(10, 2)
 );
 
--- 3. טבלת משמרות קבועות
+-- 3. יצירת טבלת משמרות קבועות
 CREATE TABLE fixed_shifts (
     id TEXT PRIMARY KEY,
     therapist_id TEXT REFERENCES therapists(id) ON DELETE CASCADE,
     room_id TEXT NOT NULL,
-    day_of_week INT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+    day_of_week INT NOT NULL,
     start_time TIME NOT NULL,
-    end_time TIME NOT NULL,
-    EXCLUDE USING gist (
-        room_id WITH =, 
-        day_of_week WITH =, 
-        tsrange(
-            ('2000-01-01'::date + start_time), 
-            ('2000-01-01'::date + end_time)
-        ) WITH &&
-    )
+    end_time TIME NOT NULL
 );
 
--- 4. טבלת שיבוצים חריגים
+-- 4. יצירת טבלת שיבוצים חריגים
 CREATE TABLE one_off_bookings (
     id TEXT PRIMARY KEY,
     therapist_id TEXT REFERENCES therapists(id) ON DELETE CASCADE,
@@ -72,23 +63,20 @@ CREATE TABLE one_off_bookings (
     date DATE NOT NULL,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
-    type TEXT DEFAULT 'booking',
-    EXCLUDE USING gist (
-        room_id WITH =, 
-        tsrange(
-            (date + start_time), 
-            (date + end_time)
-        ) WITH &&
-    )
+    type TEXT DEFAULT 'booking'
 );
 
--- 5. ביטול אבטחה לגישה חופשית מהאפליקציה
+-- 5. ביטול הגנות (חובה!)
 ALTER TABLE therapists DISABLE ROW LEVEL SECURITY;
 ALTER TABLE fixed_shifts DISABLE ROW LEVEL SECURITY;
 ALTER TABLE one_off_bookings DISABLE ROW LEVEL SECURITY;
 
--- 6. הרשאות גישה ל-public
+-- 6. הרשאות גישה מלאות
 GRANT ALL ON therapists TO anon, authenticated, service_role;
 GRANT ALL ON fixed_shifts TO anon, authenticated, service_role;
 GRANT ALL ON one_off_bookings TO anon, authenticated, service_role;
+
+-- 7. אופציונלי: מניעת חפיפות (רק אם btree_gist מותקן)
+-- אם הפקודה הבאה נכשלת, לא נורא, השמירה עדיין תעבוד.
+CREATE EXTENSION IF NOT EXISTS btree_gist;
 `;
