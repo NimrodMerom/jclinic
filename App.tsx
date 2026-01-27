@@ -80,7 +80,8 @@ const App: React.FC = () => {
   const [selectedRoomId, setSelectedRoomId] = useState<string>('all');
   const [selectedTherapistId, setSelectedTherapistId] = useState<string>('all');
 
-  const lastWriteTime = useRef<number>(0);
+  // מנגנון הגנה: נועל סנכרון מהשרת למשך 5 שניות אחרי שמירה מקומית
+  const syncLockRef = useRef<number>(0);
   const therapistsRef = useRef(therapists);
 
   useEffect(() => {
@@ -98,49 +99,30 @@ const App: React.FC = () => {
 
   const loadData = useCallback(async (silent = false) => {
     if (!isCloudEnabled()) return;
-    if (silent && Date.now() - lastWriteTime.current < 4000) return;
+    
+    // אם נעלנו את הסנכרון (כי הרגע שמרנו משהו), אל תרענן מהשרת
+    if (silent && Date.now() - syncLockRef.current < 5000) return;
 
     if (!silent) setIsLoading(true);
     try {
       const cloudTherapists = await db.getTherapists();
-      if (cloudTherapists && cloudTherapists.length > 0) {
-        setTherapists(cloudTherapists);
-      } else if (therapistsRef.current.length > 0) {
-        for (const t of therapistsRef.current) { await db.saveTherapist(t); }
-      }
+      if (cloudTherapists.length > 0) setTherapists(cloudTherapists);
 
       const cloudFixed = await db.getFixedShifts();
       const cloudOneOffs = await db.getOneOffBookings();
       
-      // Update only if we got valid data to prevent clearing UI on server error
-      if (Array.isArray(cloudFixed)) setFixedShifts(cloudFixed);
-      if (Array.isArray(cloudOneOffs)) setOneOffBookings(cloudOneOffs);
-
+      setFixedShifts(cloudFixed);
+      setOneOffBookings(cloudOneOffs);
     } catch (e: any) {
       console.error("Cloud load failed:", e);
+      if (!silent) setErrorMsg("שגיאת טעינה: " + e.message);
     } finally {
       if (!silent) setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    const handleMagicLink = () => {
-      const params = new URLSearchParams(window.location.search);
-      const urlParam = params.get('sb_url');
-      const keyParam = params.get('sb_key');
-
-      if (urlParam && keyParam) {
-        initSupabase(decodeURIComponent(urlParam), decodeURIComponent(keyParam));
-        setCloudActive(true);
-        const newUrl = window.location.origin + window.location.pathname;
-        window.history.replaceState({}, document.title, newUrl);
-        loadData();
-      }
-    };
-
-    handleMagicLink();
     setCloudActive(isCloudEnabled());
-    
     if (isCloudEnabled()) {
       loadData();
       const unsubscribe = subscribeToChanges(() => loadData(true));
@@ -149,9 +131,9 @@ const App: React.FC = () => {
   }, [loadData]);
 
   const handleAddFixed = async (shift: FixedShift) => {
-    lastWriteTime.current = Date.now();
+    syncLockRef.current = Date.now();
     const original = [...fixedShifts];
-    setFixedShifts(current => [...current, shift]);
+    setFixedShifts(prev => [...prev, shift]);
     
     if (isCloudEnabled()) {
       try { 
@@ -159,18 +141,17 @@ const App: React.FC = () => {
         if (therapist) await db.saveTherapist(therapist);
         await db.saveFixedShift(shift); 
       } catch (e: any) { 
-        console.error("Save failed:", e);
         setErrorMsg(e.message);
-        setFixedShifts(original); 
+        setFixedShifts(original); // מחזירים למצב הקודם רק אם באמת נכשל
         setTimeout(() => setErrorMsg(null), 8000);
       }
     }
   };
 
   const handleAddOneOff = async (booking: OneOffBooking) => {
-    lastWriteTime.current = Date.now();
+    syncLockRef.current = Date.now();
     const original = [...oneOffBookings];
-    setOneOffBookings(current => [...current, booking]);
+    setOneOffBookings(prev => [...prev, booking]);
     
     if (isCloudEnabled()) {
       try { 
@@ -178,7 +159,6 @@ const App: React.FC = () => {
         if (therapist) await db.saveTherapist(therapist);
         await db.saveOneOffBooking(booking); 
       } catch (e: any) { 
-        console.error("Save failed:", e);
         setErrorMsg(e.message);
         setOneOffBookings(original);
         setTimeout(() => setErrorMsg(null), 8000);
@@ -187,7 +167,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteFixed = async (id: string) => {
-    lastWriteTime.current = Date.now();
+    syncLockRef.current = Date.now();
     const original = [...fixedShifts];
     setFixedShifts(prev => prev.filter(s => s.id !== id));
     if (isCloudEnabled()) {
@@ -200,7 +180,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteOneOff = async (id: string) => {
-    lastWriteTime.current = Date.now();
+    syncLockRef.current = Date.now();
     const original = [...oneOffBookings];
     setOneOffBookings(prev => prev.filter(b => b.id !== id));
     if (isCloudEnabled()) {
@@ -213,7 +193,8 @@ const App: React.FC = () => {
   };
 
   const handleAddTherapist = async (therapist: Therapist) => {
-    lastWriteTime.current = Date.now();
+    syncLockRef.current = Date.now();
+    const original = [...therapists];
     setTherapists(prev => {
       const exists = prev.find(t => t.id === therapist.id);
       if (exists) return prev.map(t => t.id === therapist.id ? therapist : t);
@@ -222,17 +203,20 @@ const App: React.FC = () => {
     if (isCloudEnabled()) {
       try { await db.saveTherapist(therapist); } catch (e: any) {
         setErrorMsg(e.message);
+        setTherapists(original);
         setTimeout(() => setErrorMsg(null), 5000);
       }
     }
   };
 
   const handleDeleteTherapist = async (id: string) => {
-    lastWriteTime.current = Date.now();
+    syncLockRef.current = Date.now();
+    const original = [...therapists];
     setTherapists(prev => prev.filter(t => t.id !== id));
     if (isCloudEnabled()) {
       try { await db.deleteTherapist(id); } catch (e: any) {
         setErrorMsg(e.message);
+        setTherapists(original);
         setTimeout(() => setErrorMsg(null), 5000);
       }
     }
@@ -261,14 +245,18 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto font-sans text-gray-900">
+      {/* הודעת שגיאה בולטת - מופיעה אם Supabase מחזיר שגיאת הרשאות */}
       {errorMsg && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-10">
-          <div className="bg-red-600 text-white px-8 py-4 rounded-2xl shadow-2xl flex flex-col gap-1 border-4 border-red-400">
-            <div className="flex items-center gap-3 font-black">
-               <AlertTriangle size={24} />
-               <span className="text-lg">השמירה נכשלה בשרת</span>
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-lg">
+          <div className="bg-red-600 text-white p-6 rounded-2xl shadow-2xl border-4 border-red-400 flex flex-col gap-2 animate-bounce">
+            <div className="flex items-center gap-3">
+              <AlertTriangle size={32} />
+              <div className="font-black text-xl">חסימת שמירה ב-Supabase!</div>
             </div>
-            <span className="text-xs font-mono opacity-90 dir-ltr text-left bg-black/10 p-2 rounded">{errorMsg}</span>
+            <p className="text-sm bg-red-700/50 p-3 rounded-lg font-mono" dir="ltr">{errorMsg}</p>
+            <div className="text-xs font-bold mt-2">
+              הנתונים לא נשמרו בענן. נא להעתיק את קוד ה-SQL מהחלק התחתון של האתר ולהריץ אותו ב-SQL Editor ב-Supabase.
+            </div>
           </div>
         </div>
       )}
