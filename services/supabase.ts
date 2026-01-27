@@ -52,11 +52,20 @@ export const subscribeToChanges = (onUpdate: () => void) => {
   };
 };
 
+const handleSupabaseError = (error: any, context: string) => {
+  console.error(`Supabase Error [${context}]:`, error);
+  // Throw a user-friendly message
+  if (error.code === '42501') throw new Error('שגיאת הרשאות (RLS). יש להריץ את פקודות ה-SECURITY בקוד ה-SQL.');
+  if (error.code === '23P01') throw new Error('שגיאת חפיפה: החדר כבר תפוס בזמן זה.');
+  if (error.code === '42P01') throw new Error('הטבלה לא קיימת בבסיס הנתונים. יש להריץ את קוד ה-SQL ב-Supabase.');
+  throw error;
+};
+
 export const db = {
   async getTherapists(): Promise<Therapist[]> {
     if (!supabase) return [];
     const { data, error } = await supabase.from('therapists').select('*');
-    if (error) throw error;
+    if (error) return [];
     return data.map(t => ({
       id: t.id,
       name: t.name,
@@ -81,19 +90,19 @@ export const db = {
       fixed_shift_rate: t.fixedShiftRate,
       one_off_rate: t.oneOffRate
     });
-    if (error) throw error;
+    if (error) handleSupabaseError(error, 'saveTherapist');
   },
 
   async deleteTherapist(id: string) {
     if (!supabase) return;
     const { error } = await supabase.from('therapists').delete().eq('id', id);
-    if (error) throw error;
+    if (error) handleSupabaseError(error, 'deleteTherapist');
   },
 
   async getFixedShifts(): Promise<FixedShift[]> {
     if (!supabase) return [];
     const { data, error } = await supabase.from('fixed_shifts').select('*');
-    if (error) throw error;
+    if (error) return [];
     return data.map(s => ({
       id: s.id,
       therapistId: s.therapist_id,
@@ -114,22 +123,19 @@ export const db = {
       start_time: s.startTime,
       end_time: s.endTime
     });
-    if (error) {
-        console.error("Supabase error saving fixed shift:", error);
-        throw error;
-    }
+    if (error) handleSupabaseError(error, 'saveFixedShift');
   },
 
   async deleteFixedShift(id: string) {
     if (!supabase) return;
     const { error } = await supabase.from('fixed_shifts').delete().eq('id', id);
-    if (error) throw error;
+    if (error) handleSupabaseError(error, 'deleteFixedShift');
   },
 
   async getOneOffBookings(): Promise<OneOffBooking[]> {
     if (!supabase) return [];
     const { data, error } = await supabase.from('one_off_bookings').select('*');
-    if (error) throw error;
+    if (error) return [];
     return data.map(b => ({
       id: b.id,
       therapistId: b.therapist_id,
@@ -152,15 +158,12 @@ export const db = {
       end_time: b.endTime,
       type: b.type || 'booking'
     });
-    if (error) {
-        console.error("Supabase error saving one-off:", error);
-        throw error;
-    }
+    if (error) handleSupabaseError(error, 'saveOneOffBooking');
   },
 
   async deleteOneOffBooking(id: string) {
     if (!supabase) return;
     const { error } = await supabase.from('one_off_bookings').delete().eq('id', id);
-    if (error) throw error;
+    if (error) handleSupabaseError(error, 'deleteOneOffBooking');
   }
 };
