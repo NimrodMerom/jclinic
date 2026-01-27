@@ -31,7 +31,7 @@ export const SQL_SCHEMA_DOC = `
 -- === 1. הכנה ותוספים ===
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
--- === 2. ניקוי טבלאות קיימות ===
+-- === 2. ניקוי טבלאות קיימות (זהירות: מוחק נתונים קיימים ב-Supabase) ===
 DROP TABLE IF EXISTS one_off_bookings CASCADE;
 DROP TABLE IF EXISTS fixed_shifts CASCADE;
 DROP TABLE IF EXISTS therapists CASCADE;
@@ -82,12 +82,13 @@ CREATE TABLE one_off_bookings (
     )
 );
 
--- === 4. פתיחת הרשאות כתיבה (קריטי למניעת היעלמות נתונים) ===
--- השורות האלו מבטלות את המנעול של Supabase ומאפשרות לאפליקציה לכתוב
+-- === 4. פתיחת הרשאות כתיבה (קריטי!!! ללא זה הנתונים יעלמו) ===
+-- מבטל את ה-RLS שנועל את הטבלאות
 ALTER TABLE therapists DISABLE ROW LEVEL SECURITY;
 ALTER TABLE fixed_shifts DISABLE ROW LEVEL SECURITY;
 ALTER TABLE one_off_bookings DISABLE ROW LEVEL SECURITY;
 
+-- נותן הרשאות מלאות לכל סוגי המשתמשים
 GRANT ALL ON TABLE therapists TO anon, authenticated, postgres, service_role;
 GRANT ALL ON TABLE fixed_shifts TO anon, authenticated, postgres, service_role;
 GRANT ALL ON TABLE one_off_bookings TO anon, authenticated, postgres, service_role;
@@ -95,12 +96,11 @@ GRANT ALL ON TABLE one_off_bookings TO anon, authenticated, postgres, service_ro
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated;
 
--- === 5. הפעלת REALTIME (לסנכרון מיידי בין מכשירים) ===
+-- === 5. הגדרות REALTIME לסנכרון מיידי ===
 ALTER TABLE therapists REPLICA IDENTITY FULL;
 ALTER TABLE fixed_shifts REPLICA IDENTITY FULL;
 ALTER TABLE one_off_bookings REPLICA IDENTITY FULL;
 
--- הפעלת ערוץ הפרסום של Supabase
 BEGIN;
   DROP PUBLICATION IF EXISTS supabase_realtime;
   CREATE PUBLICATION supabase_realtime FOR ALL TABLES;
