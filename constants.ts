@@ -27,16 +27,16 @@ export const INITIAL_THERAPISTS: Therapist[] = [
 
 export const WEEK_DAYS_HE = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
-export const SQL_SCHEMA_DOC = `-- === CLINICFLOW SQL SCHEMA v2.2 (REQUIRED FOR SYNC) ===
--- 1. Enable extension for overlap detection
+export const SQL_SCHEMA_DOC = `-- === CLINICFLOW SQL SCHEMA v2.3 (FINAL SYNC FIX) ===
+-- 1. הפעלת תוסף למניעת כפילויות בחדרים
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
--- 2. Clear existing tables
+-- 2. ניקוי טבלאות קיימות
 DROP TABLE IF EXISTS one_off_bookings CASCADE;
 DROP TABLE IF EXISTS fixed_shifts CASCADE;
 DROP TABLE IF EXISTS therapists CASCADE;
 
--- 3. Create Tables
+-- 3. יצירת טבלאות
 CREATE TABLE therapists (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -82,13 +82,13 @@ CREATE TABLE one_off_bookings (
     )
 );
 
--- 4. PERMISSIONS (CRITICAL: Prevents data disappearance)
--- Disable Row Level Security (RLS) so the app can write data
+-- 4. הרשאות כתיבה (חובה להריץ את זה!)
+-- ביטול נעילת האבטחה של Supabase
 ALTER TABLE therapists DISABLE ROW LEVEL SECURITY;
 ALTER TABLE fixed_shifts DISABLE ROW LEVEL SECURITY;
 ALTER TABLE one_off_bookings DISABLE ROW LEVEL SECURITY;
 
--- Grant full access to the API
+-- מתן הרשאות מלאות לאפליקציה
 GRANT ALL ON TABLE therapists TO anon, authenticated, postgres, service_role;
 GRANT ALL ON TABLE fixed_shifts TO anon, authenticated, postgres, service_role;
 GRANT ALL ON TABLE one_off_bookings TO anon, authenticated, postgres, service_role;
@@ -96,7 +96,7 @@ GRANT ALL ON TABLE one_off_bookings TO anon, authenticated, postgres, service_ro
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated;
 
--- 5. REALTIME (Sync between devices)
+-- 5. הפעלת עדכונים בזמן אמת (Realtime)
 ALTER TABLE therapists REPLICA IDENTITY FULL;
 ALTER TABLE fixed_shifts REPLICA IDENTITY FULL;
 ALTER TABLE one_off_bookings REPLICA IDENTITY FULL;
