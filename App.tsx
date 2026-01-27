@@ -63,7 +63,6 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('clinic_one_off_bookings');
     return saved ? JSON.parse(saved) : getInitialOneOffs();
   });
-  // Fixed typo in type definition from Therap therapist[] to Therapist[]
   const [therapists, setTherapists] = useState<Therapist[]>(() => {
     const saved = localStorage.getItem('clinic_therapists');
     return saved ? JSON.parse(saved) : INITIAL_THERAPISTS;
@@ -98,10 +97,8 @@ const App: React.FC = () => {
   const loadData = useCallback(async (silent = false) => {
     if (!isCloudEnabled()) return;
     
-    // Extended cooldown to 5 seconds to ensure Postgres has finished processing
-    if (silent && Date.now() - lastWriteTime.current < 5000) {
-      return;
-    }
+    // Protection: Don't let background updates overwrite fresh user changes
+    if (silent && Date.now() - lastWriteTime.current < 8000) return;
 
     if (!silent) setIsLoading(true);
     try {
@@ -112,10 +109,10 @@ const App: React.FC = () => {
       ]);
       
       if (cloudTherapists && cloudTherapists.length > 0) setTherapists(cloudTherapists);
-      if (cloudFixed) setFixedShifts(cloudFixed);
-      if (cloudOneOffs) setOneOffBookings(cloudOneOffs);
-    } catch (e) {
-      console.error("Error loading cloud data:", e);
+      setFixedShifts(cloudFixed || []);
+      setOneOffBookings(cloudOneOffs || []);
+    } catch (e: any) {
+      console.error("Cloud load failed:", e);
     } finally {
       if (!silent) setIsLoading(false);
     }
@@ -132,67 +129,75 @@ const App: React.FC = () => {
         setCloudActive(true);
         const newUrl = window.location.origin + window.location.pathname;
         window.history.replaceState({}, document.title, newUrl);
+        loadData();
       }
     };
 
     handleMagicLink();
     setCloudActive(isCloudEnabled());
-    loadData();
-
-    const unsubscribe = subscribeToChanges(() => {
-      loadData(true);
-    });
-
-    return () => unsubscribe();
+    
+    if (isCloudEnabled()) {
+      loadData();
+      const unsubscribe = subscribeToChanges(() => loadData(true));
+      return () => unsubscribe();
+    }
   }, [loadData]);
 
   const handleAddFixed = async (shift: FixedShift) => {
     lastWriteTime.current = Date.now();
-    const prev = [...fixedShifts];
+    const original = [...fixedShifts];
     setFixedShifts(current => [...current, shift]);
     
     if (isCloudEnabled()) {
       try { 
         await db.saveFixedShift(shift); 
       } catch (e: any) { 
-        console.error(e);
-        setErrorMsg(e.message?.includes('overlap') ? 'שגיאה: קיימת התנגשות זמנים בחדר זה' : 'שגיאת שמירה בענן. נסי שוב.');
-        setFixedShifts(prev); // Revert on failure
-        setTimeout(() => setErrorMsg(null), 5000);
+        setErrorMsg(e.message);
+        setFixedShifts(original); 
+        setTimeout(() => setErrorMsg(null), 6000);
       }
     }
   };
 
   const handleAddOneOff = async (booking: OneOffBooking) => {
     lastWriteTime.current = Date.now();
-    const prev = [...oneOffBookings];
+    const original = [...oneOffBookings];
     setOneOffBookings(current => [...current, booking]);
     
     if (isCloudEnabled()) {
       try { 
         await db.saveOneOffBooking(booking); 
       } catch (e: any) { 
-        console.error(e);
-        setErrorMsg(e.message?.includes('overlap') ? 'שגיאה: קיימת התנגשות זמנים בחדר זה' : 'שגיאת שמירה בענן. נסי שוב.');
-        setOneOffBookings(prev); // Revert on failure
-        setTimeout(() => setErrorMsg(null), 5000);
+        setErrorMsg(e.message);
+        setOneOffBookings(original);
+        setTimeout(() => setErrorMsg(null), 6000);
       }
     }
   };
 
   const handleDeleteFixed = async (id: string) => {
     lastWriteTime.current = Date.now();
+    const original = [...fixedShifts];
     setFixedShifts(prev => prev.filter(s => s.id !== id));
     if (isCloudEnabled()) {
-      try { await db.deleteFixedShift(id); } catch (e) { console.error(e); }
+      try { await db.deleteFixedShift(id); } catch (e: any) {
+        setErrorMsg(e.message);
+        setFixedShifts(original);
+        setTimeout(() => setErrorMsg(null), 5000);
+      }
     }
   };
 
   const handleDeleteOneOff = async (id: string) => {
     lastWriteTime.current = Date.now();
+    const original = [...oneOffBookings];
     setOneOffBookings(prev => prev.filter(b => b.id !== id));
     if (isCloudEnabled()) {
-      try { await db.deleteOneOffBooking(id); } catch (e) { console.error(e); }
+      try { await db.deleteOneOffBooking(id); } catch (e: any) {
+        setErrorMsg(e.message);
+        setOneOffBookings(original);
+        setTimeout(() => setErrorMsg(null), 5000);
+      }
     }
   };
 
@@ -204,7 +209,10 @@ const App: React.FC = () => {
       return [...prev, therapist];
     });
     if (isCloudEnabled()) {
-      try { await db.saveTherapist(therapist); } catch (e) { console.error(e); }
+      try { await db.saveTherapist(therapist); } catch (e: any) {
+        setErrorMsg(e.message);
+        setTimeout(() => setErrorMsg(null), 5000);
+      }
     }
   };
 
@@ -212,7 +220,10 @@ const App: React.FC = () => {
     lastWriteTime.current = Date.now();
     setTherapists(prev => prev.filter(t => t.id !== id));
     if (isCloudEnabled()) {
-      try { await db.deleteTherapist(id); } catch (e) { console.error(e); }
+      try { await db.deleteTherapist(id); } catch (e: any) {
+        setErrorMsg(e.message);
+        setTimeout(() => setErrorMsg(null), 5000);
+      }
     }
   };
 
@@ -240,10 +251,13 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto font-sans text-gray-900">
       {errorMsg && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-4">
-          <div className="bg-red-600 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 font-bold border-2 border-red-500">
-            <AlertTriangle size={20} />
-            {errorMsg}
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-10">
+          <div className="bg-red-600 text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-4 font-black border-4 border-red-400">
+            <AlertTriangle size={24} />
+            <div className="flex flex-col">
+              <span className="text-lg">שגיאה בשמירת נתונים!</span>
+              <span className="text-xs font-medium opacity-90">{errorMsg}</span>
+            </div>
           </div>
         </div>
       )}
