@@ -12,7 +12,7 @@ import { getInitialFixedShifts, getInitialOneOffs, getNextSunday } from './servi
 import { db, isCloudEnabled, initSupabase, subscribeToChanges } from './services/supabase';
 import { 
   ChevronRight, ChevronLeft, Calendar as CalendarIcon, Info, Filter, 
-  Settings, LayoutGrid, LayoutList, Calculator, CalendarClock, Cloud, CloudOff, RefreshCw
+  Settings, LayoutGrid, LayoutList, Calculator, CalendarClock, Cloud, CloudOff, RefreshCw, AlertTriangle
 } from 'lucide-react';
 import { ROOMS, INITIAL_THERAPISTS, WEEK_DAYS_HE } from './constants';
 
@@ -63,6 +63,7 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('clinic_one_off_bookings');
     return saved ? JSON.parse(saved) : getInitialOneOffs();
   });
+  // Fixed typo in type definition from Therap therapist[] to Therapist[]
   const [therapists, setTherapists] = useState<Therapist[]>(() => {
     const saved = localStorage.getItem('clinic_therapists');
     return saved ? JSON.parse(saved) : INITIAL_THERAPISTS;
@@ -75,11 +76,11 @@ const App: React.FC = () => {
   const [isCloudOpen, setIsCloudOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [cloudActive, setCloudActive] = useState(isCloudEnabled());
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
   const [selectedRoomId, setSelectedRoomId] = useState<string>('all');
   const [selectedTherapistId, setSelectedTherapistId] = useState<string>('all');
 
-  // Ref to track the last time we performed a local write to prevent immediate sync overwrites
   const lastWriteTime = useRef<number>(0);
 
   useEffect(() => {
@@ -97,9 +98,8 @@ const App: React.FC = () => {
   const loadData = useCallback(async (silent = false) => {
     if (!isCloudEnabled()) return;
     
-    // CRITICAL FIX: If we just performed a local action, don't overwrite the screen with 
-    // potentially stale cloud data for 3 seconds.
-    if (silent && Date.now() - lastWriteTime.current < 3000) {
+    // Extended cooldown to 5 seconds to ensure Postgres has finished processing
+    if (silent && Date.now() - lastWriteTime.current < 5000) {
       return;
     }
 
@@ -148,9 +148,35 @@ const App: React.FC = () => {
 
   const handleAddFixed = async (shift: FixedShift) => {
     lastWriteTime.current = Date.now();
-    setFixedShifts(prev => [...prev, shift]);
+    const prev = [...fixedShifts];
+    setFixedShifts(current => [...current, shift]);
+    
     if (isCloudEnabled()) {
-      try { await db.saveFixedShift(shift); } catch (e) { console.error(e); }
+      try { 
+        await db.saveFixedShift(shift); 
+      } catch (e: any) { 
+        console.error(e);
+        setErrorMsg(e.message?.includes('overlap') ? 'שגיאה: קיימת התנגשות זמנים בחדר זה' : 'שגיאת שמירה בענן. נסי שוב.');
+        setFixedShifts(prev); // Revert on failure
+        setTimeout(() => setErrorMsg(null), 5000);
+      }
+    }
+  };
+
+  const handleAddOneOff = async (booking: OneOffBooking) => {
+    lastWriteTime.current = Date.now();
+    const prev = [...oneOffBookings];
+    setOneOffBookings(current => [...current, booking]);
+    
+    if (isCloudEnabled()) {
+      try { 
+        await db.saveOneOffBooking(booking); 
+      } catch (e: any) { 
+        console.error(e);
+        setErrorMsg(e.message?.includes('overlap') ? 'שגיאה: קיימת התנגשות זמנים בחדר זה' : 'שגיאת שמירה בענן. נסי שוב.');
+        setOneOffBookings(prev); // Revert on failure
+        setTimeout(() => setErrorMsg(null), 5000);
+      }
     }
   };
 
@@ -159,14 +185,6 @@ const App: React.FC = () => {
     setFixedShifts(prev => prev.filter(s => s.id !== id));
     if (isCloudEnabled()) {
       try { await db.deleteFixedShift(id); } catch (e) { console.error(e); }
-    }
-  };
-
-  const handleAddOneOff = async (booking: OneOffBooking) => {
-    lastWriteTime.current = Date.now();
-    setOneOffBookings(prev => [...prev, booking]);
-    if (isCloudEnabled()) {
-      try { await db.saveOneOffBooking(booking); } catch (e) { console.error(e); }
     }
   };
 
@@ -221,6 +239,15 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto font-sans text-gray-900">
+      {errorMsg && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-4">
+          <div className="bg-red-600 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 font-bold border-2 border-red-500">
+            <AlertTriangle size={20} />
+            {errorMsg}
+          </div>
+        </div>
+      )}
+
       <header className="mb-6 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div className="flex items-start justify-between">
           <div>
