@@ -53,18 +53,14 @@ export const Assistant: React.FC<AssistantProps> = ({
   const handleAsk = async () => {
     if (!query.trim()) return;
     
-    const apiKey = typeof process !== 'undefined' ? process.env?.API_KEY : undefined;
-
-    if (!apiKey) {
-      setResponse("שגיאה: חסר מפתח API.");
-      return;
-    }
+    // Removed manual API key checks as it is handled externally and injected via process.env.API_KEY
 
     setLoading(true);
     setResponse(null);
 
     try {
-      const ai = new GoogleGenAI({ apiKey });
+      // Use process.env.API_KEY directly in the named parameter constructor
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const context = getContext();
       
       const response = await ai.models.generateContent({
@@ -82,7 +78,7 @@ export const Assistant: React.FC<AssistantProps> = ({
         `,
       });
 
-      setResponse(response.text);
+      setResponse(response.text || "לא התקבלה תשובה מהמודל.");
     } catch (error) {
       console.error(error);
       setResponse("מצטערים, אירעה שגיאה בעיבוד הבקשה.");
