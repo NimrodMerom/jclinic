@@ -28,24 +28,23 @@ export const INITIAL_THERAPISTS: Therapist[] = [
 export const WEEK_DAYS_HE = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
 export const SQL_SCHEMA_DOC = `
--- 1. ניקוי יסודי
+-- 1. מחיקת טבלאות קודמות
 DROP TABLE IF EXISTS one_off_bookings;
 DROP TABLE IF EXISTS fixed_shifts;
 DROP TABLE IF EXISTS therapists;
 
--- 2. יצירת טבלת מטפלים
+-- 2. יצירת טבלאות
 CREATE TABLE therapists (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     color TEXT,
     phone TEXT,
     email TEXT,
-    payment_type TEXT DEFAULT 'hourly',
-    fixed_shift_rate DECIMAL(10, 2),
-    one_off_rate DECIMAL(10, 2)
+    payment_type TEXT,
+    fixed_shift_rate DECIMAL,
+    one_off_rate DECIMAL
 );
 
--- 3. יצירת טבלת משמרות קבועות
 CREATE TABLE fixed_shifts (
     id TEXT PRIMARY KEY,
     therapist_id TEXT REFERENCES therapists(id) ON DELETE CASCADE,
@@ -55,7 +54,6 @@ CREATE TABLE fixed_shifts (
     end_time TIME NOT NULL
 );
 
--- 4. יצירת טבלת שיבוצים חריגים
 CREATE TABLE one_off_bookings (
     id TEXT PRIMARY KEY,
     therapist_id TEXT REFERENCES therapists(id) ON DELETE CASCADE,
@@ -66,17 +64,17 @@ CREATE TABLE one_off_bookings (
     type TEXT DEFAULT 'booking'
 );
 
--- 5. ביטול הגנות (חובה!)
+-- 3. ביטול אבטחה (RLS) - קריטי!
 ALTER TABLE therapists DISABLE ROW LEVEL SECURITY;
 ALTER TABLE fixed_shifts DISABLE ROW LEVEL SECURITY;
 ALTER TABLE one_off_bookings DISABLE ROW LEVEL SECURITY;
 
--- 6. הרשאות גישה מלאות
+-- 4. הענקת הרשאות מלאות לכולם
 GRANT ALL ON therapists TO anon, authenticated, service_role;
 GRANT ALL ON fixed_shifts TO anon, authenticated, service_role;
 GRANT ALL ON one_off_bookings TO anon, authenticated, service_role;
 
--- 7. אופציונלי: מניעת חפיפות (רק אם btree_gist מותקן)
--- אם הפקודה הבאה נכשלת, לא נורא, השמירה עדיין תעבוד.
-CREATE EXTENSION IF NOT EXISTS btree_gist;
+-- 5. וידוא שכל הבקשות מורשות
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
 `;
