@@ -41,7 +41,7 @@ export const subscribeToChanges = (onUpdate: () => void) => {
   if (!supabase) return () => {};
 
   const channel = supabase
-    .channel('schema-db-changes')
+    .channel('db-sync-channel')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'therapists' }, onUpdate)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'fixed_shifts' }, onUpdate)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'one_off_bookings' }, onUpdate)
@@ -52,41 +52,40 @@ export const subscribeToChanges = (onUpdate: () => void) => {
   };
 };
 
-// Helper to ensure time is in HH:MM:SS format for Postgres
+// Ensure time is HH:MM:SS
 const formatTimeForDb = (time: string) => {
   if (!time) return '00:00:00';
-  return time.split(':').length === 2 ? `${time}:00` : time;
+  const parts = time.split(':');
+  if (parts.length === 2) return `${time}:00`;
+  return time;
 };
 
 const handleSupabaseError = (error: any, context: string) => {
   console.error(`Supabase Error [${context}]:`, error);
-  const msg = error.message || error.code || 'Unknown Error';
-  const detail = error.details || '';
+  const code = error.code || 'UNKNOWN';
+  const message = error.message || 'שגיאה לא ידועה';
   
-  if (error.code === '42501') throw new Error('שגיאת הרשאות (RLS). וודא שהרצת את ה-SQL החדש.');
-  if (error.code === '22P02') throw new Error('פורמט נתונים שגוי. פנה לתמיכה.');
-  if (error.code === '23503') throw new Error('המטפל לא קיים במסד הנתונים.');
+  if (code === '42501') throw new Error(`שגיאת הרשאות (42501): השרת מסרב לקבל נתונים. נא להריץ מחדש את ה-SQL עם ה-GRANT ALL.`);
+  if (code === '23503') throw new Error(`שגיאת קשר (23503): המטפל לא נמצא בשרת. נסי לשמור שוב את המטפל.`);
   
-  throw new Error(`${msg} ${detail}`);
+  throw new Error(`${message} (קוד: ${code})`);
 };
 
 export const db = {
   async getTherapists(): Promise<Therapist[]> {
     if (!supabase) return [];
-    try {
-      const { data, error } = await supabase.from('therapists').select('*');
-      if (error) throw error;
-      return data.map(t => ({
-        id: t.id,
-        name: t.name,
-        color: t.color,
-        phone: t.phone,
-        email: t.email,
-        paymentType: (t.payment_type as PaymentType) || 'hourly',
-        fixedShiftRate: t.fixed_shift_rate,
-        oneOffRate: t.one_off_rate
-      }));
-    } catch (e) { return []; }
+    const { data, error } = await supabase.from('therapists').select('*');
+    if (error) return [];
+    return data.map(t => ({
+      id: t.id,
+      name: t.name,
+      color: t.color,
+      phone: t.phone,
+      email: t.email,
+      paymentType: (t.payment_type as PaymentType) || 'hourly',
+      fixedShiftRate: Number(t.fixed_shift_rate) || 0,
+      oneOffRate: Number(t.one_off_rate) || 0
+    }));
   },
 
   async saveTherapist(t: Therapist) {
@@ -112,18 +111,16 @@ export const db = {
 
   async getFixedShifts(): Promise<FixedShift[]> {
     if (!supabase) return [];
-    try {
-      const { data, error } = await supabase.from('fixed_shifts').select('*');
-      if (error) throw error;
-      return data.map(s => ({
-        id: s.id,
-        therapistId: s.therapist_id,
-        roomId: s.room_id,
-        dayOfWeek: s.day_of_week,
-        startTime: s.start_time.substring(0, 5),
-        endTime: s.end_time.substring(0, 5)
-      }));
-    } catch (e) { return []; }
+    const { data, error } = await supabase.from('fixed_shifts').select('*');
+    if (error) return [];
+    return data.map(s => ({
+      id: s.id,
+      therapistId: s.therapist_id,
+      roomId: s.room_id,
+      dayOfWeek: s.day_of_week,
+      startTime: s.start_time.substring(0, 5),
+      endTime: s.end_time.substring(0, 5)
+    }));
   },
 
   async saveFixedShift(s: FixedShift) {
@@ -147,19 +144,17 @@ export const db = {
 
   async getOneOffBookings(): Promise<OneOffBooking[]> {
     if (!supabase) return [];
-    try {
-      const { data, error } = await supabase.from('one_off_bookings').select('*');
-      if (error) throw error;
-      return data.map(b => ({
-        id: b.id,
-        therapistId: b.therapist_id,
-        roomId: b.room_id,
-        date: b.date,
-        startTime: b.start_time.substring(0, 5),
-        endTime: b.end_time.substring(0, 5),
-        type: b.type
-      }));
-    } catch (e) { return []; }
+    const { data, error } = await supabase.from('one_off_bookings').select('*');
+    if (error) return [];
+    return data.map(b => ({
+      id: b.id,
+      therapistId: b.therapist_id,
+      roomId: b.room_id,
+      date: b.date,
+      startTime: b.start_time.substring(0, 5),
+      endTime: b.end_time.substring(0, 5),
+      type: b.type
+    }));
   },
 
   async saveOneOffBooking(b: OneOffBooking) {
