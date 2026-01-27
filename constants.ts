@@ -28,11 +28,14 @@ export const INITIAL_THERAPISTS: Therapist[] = [
 export const WEEK_DAYS_HE = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
 export const SQL_SCHEMA_DOC = `
--- 1. הפעלת תוסף לזיהוי חפיפות
+-- 1. ניקוי והפעלת תוספים
+DROP TABLE IF EXISTS one_off_bookings;
+DROP TABLE IF EXISTS fixed_shifts;
+DROP TABLE IF EXISTS therapists;
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
 -- 2. טבלת מטפלים
-CREATE TABLE IF NOT EXISTS therapists (
+CREATE TABLE therapists (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     color TEXT,
@@ -44,7 +47,7 @@ CREATE TABLE IF NOT EXISTS therapists (
 );
 
 -- 3. טבלת משמרות קבועות
-CREATE TABLE IF NOT EXISTS fixed_shifts (
+CREATE TABLE fixed_shifts (
     id TEXT PRIMARY KEY,
     therapist_id TEXT REFERENCES therapists(id) ON DELETE CASCADE,
     room_id TEXT NOT NULL,
@@ -62,7 +65,7 @@ CREATE TABLE IF NOT EXISTS fixed_shifts (
 );
 
 -- 4. טבלת שיבוצים חריגים
-CREATE TABLE IF NOT EXISTS one_off_bookings (
+CREATE TABLE one_off_bookings (
     id TEXT PRIMARY KEY,
     therapist_id TEXT REFERENCES therapists(id) ON DELETE CASCADE,
     room_id TEXT NOT NULL,
@@ -79,9 +82,13 @@ CREATE TABLE IF NOT EXISTS one_off_bookings (
     )
 );
 
--- 5. פתיחת הרשאות (חשוב מאוד!)
--- פקודות אלו מבטלות את הנעילה של Supabase ומאפשרות לאפליקציה לשמור נתונים
+-- 5. ביטול אבטחה לגישה חופשית מהאפליקציה
 ALTER TABLE therapists DISABLE ROW LEVEL SECURITY;
 ALTER TABLE fixed_shifts DISABLE ROW LEVEL SECURITY;
 ALTER TABLE one_off_bookings DISABLE ROW LEVEL SECURITY;
+
+-- 6. הרשאות גישה ל-public
+GRANT ALL ON therapists TO anon, authenticated, service_role;
+GRANT ALL ON fixed_shifts TO anon, authenticated, service_role;
+GRANT ALL ON one_off_bookings TO anon, authenticated, service_role;
 `;
