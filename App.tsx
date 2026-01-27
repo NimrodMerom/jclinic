@@ -96,9 +96,7 @@ const App: React.FC = () => {
 
   const loadData = useCallback(async (silent = false) => {
     if (!isCloudEnabled()) return;
-    
-    // Protection: Don't let background updates overwrite fresh user changes
-    if (silent && Date.now() - lastWriteTime.current < 8000) return;
+    if (silent && Date.now() - lastWriteTime.current < 5000) return;
 
     if (!silent) setIsLoading(true);
     try {
@@ -108,7 +106,16 @@ const App: React.FC = () => {
         db.getOneOffBookings()
       ]);
       
-      if (cloudTherapists && cloudTherapists.length > 0) setTherapists(cloudTherapists);
+      if (cloudTherapists && cloudTherapists.length > 0) {
+        setTherapists(cloudTherapists);
+      } else if (therapists.length > 0) {
+        // Initial sync: Cloud is empty but we have local therapists
+        console.log("Syncing therapists to new cloud...");
+        for (const t of therapists) {
+          await db.saveTherapist(t);
+        }
+      }
+
       setFixedShifts(cloudFixed || []);
       setOneOffBookings(cloudOneOffs || []);
     } catch (e: any) {
@@ -116,7 +123,7 @@ const App: React.FC = () => {
     } finally {
       if (!silent) setIsLoading(false);
     }
-  }, []);
+  }, [therapists]);
 
   useEffect(() => {
     const handleMagicLink = () => {
@@ -150,8 +157,13 @@ const App: React.FC = () => {
     
     if (isCloudEnabled()) {
       try { 
+        // Ensure therapist exists in DB first
+        const therapist = therapists.find(t => t.id === shift.therapistId);
+        if (therapist) await db.saveTherapist(therapist);
+        
         await db.saveFixedShift(shift); 
       } catch (e: any) { 
+        console.error("Save failed:", e);
         setErrorMsg(e.message);
         setFixedShifts(original); 
         setTimeout(() => setErrorMsg(null), 6000);
@@ -166,8 +178,13 @@ const App: React.FC = () => {
     
     if (isCloudEnabled()) {
       try { 
+        // Ensure therapist exists in DB first
+        const therapist = therapists.find(t => t.id === booking.therapistId);
+        if (therapist) await db.saveTherapist(therapist);
+        
         await db.saveOneOffBooking(booking); 
       } catch (e: any) { 
+        console.error("Save failed:", e);
         setErrorMsg(e.message);
         setOneOffBookings(original);
         setTimeout(() => setErrorMsg(null), 6000);
@@ -252,12 +269,12 @@ const App: React.FC = () => {
     <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto font-sans text-gray-900">
       {errorMsg && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-10">
-          <div className="bg-red-600 text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-4 font-black border-4 border-red-400">
-            <AlertTriangle size={24} />
-            <div className="flex flex-col">
-              <span className="text-lg">שגיאה בשמירת נתונים!</span>
-              <span className="text-xs font-medium opacity-90">{errorMsg}</span>
+          <div className="bg-red-600 text-white px-8 py-4 rounded-2xl shadow-2xl flex flex-col gap-1 border-4 border-red-400">
+            <div className="flex items-center gap-3 font-black">
+               <AlertTriangle size={24} />
+               <span className="text-lg">השמירה נכשלה</span>
             </div>
+            <span className="text-xs font-medium opacity-90 dir-ltr text-left">{errorMsg}</span>
           </div>
         </div>
       )}
