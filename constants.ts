@@ -28,30 +28,41 @@ export const INITIAL_THERAPISTS: Therapist[] = [
 export const WEEK_DAYS_HE = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
 export const SQL_SCHEMA_DOC = `
--- === שלב 1: מחיקה נקייה ===
+-- === 1. הכנה ותוספים ===
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+-- === 2. ניקוי טבלאות קיימות ===
 DROP TABLE IF EXISTS one_off_bookings CASCADE;
 DROP TABLE IF EXISTS fixed_shifts CASCADE;
 DROP TABLE IF EXISTS therapists CASCADE;
 
--- === שלב 2: יצירת טבלאות ===
+-- === 3. יצירת טבלאות ===
 CREATE TABLE therapists (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     color TEXT,
     phone TEXT,
     email TEXT,
-    payment_type TEXT,
-    fixed_shift_rate DECIMAL DEFAULT 0,
-    one_off_rate DECIMAL DEFAULT 0
+    payment_type TEXT DEFAULT 'hourly',
+    fixed_shift_rate DECIMAL(10, 2),
+    one_off_rate DECIMAL(10, 2)
 );
 
 CREATE TABLE fixed_shifts (
     id TEXT PRIMARY KEY,
     therapist_id TEXT REFERENCES therapists(id) ON DELETE CASCADE,
     room_id TEXT NOT NULL,
-    day_of_week INT NOT NULL,
+    day_of_week INT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
     start_time TIME NOT NULL,
-    end_time TIME NOT NULL
+    end_time TIME NOT NULL,
+    EXCLUDE USING gist (
+        room_id WITH =, 
+        day_of_week WITH =, 
+        tsrange(
+            ('2000-01-01'::date + start_time), 
+            ('2000-01-01'::date + end_time)
+        ) WITH &&
+    )
 );
 
 CREATE TABLE one_off_bookings (
@@ -61,26 +72,37 @@ CREATE TABLE one_off_bookings (
     date DATE NOT NULL,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
-    type TEXT DEFAULT 'booking'
+    type TEXT DEFAULT 'booking',
+    EXCLUDE USING gist (
+        room_id WITH =, 
+        tsrange(
+            (date + start_time), 
+            (date + end_time)
+        ) WITH &&
+    )
 );
 
--- === שלב 3: ביטול אבטחה (RLS) - קריטי! ===
+-- === 4. פתיחת הרשאות כתיבה (קריטי למניעת היעלמות נתונים) ===
+-- השורות האלו מבטלות את המנעול של Supabase ומאפשרות לאפליקציה לכתוב
 ALTER TABLE therapists DISABLE ROW LEVEL SECURITY;
 ALTER TABLE fixed_shifts DISABLE ROW LEVEL SECURITY;
 ALTER TABLE one_off_bookings DISABLE ROW LEVEL SECURITY;
 
--- === שלב 4: הענקת הרשאות GRANT ALL (זה מה שהיה חסר) ===
--- אנו מאפשרים למשתמשים אנונימיים (anon) ולמחוברים (authenticated) גישה מלאה
-GRANT ALL ON TABLE therapists TO anon, authenticated, service_role;
-GRANT ALL ON TABLE fixed_shifts TO anon, authenticated, service_role;
-GRANT ALL ON TABLE one_off_bookings TO anon, authenticated, service_role;
+GRANT ALL ON TABLE therapists TO anon, authenticated, postgres, service_role;
+GRANT ALL ON TABLE fixed_shifts TO anon, authenticated, postgres, service_role;
+GRANT ALL ON TABLE one_off_bookings TO anon, authenticated, postgres, service_role;
 
--- הרשאות גורפות לכל מה שנמצא ב-public
-GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
-GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated;
 
--- וידוא הרשאות גם לטבלאות שייווצרו בעתיד
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO authenticated;
+-- === 5. הפעלת REALTIME (לסנכרון מיידי בין מכשירים) ===
+ALTER TABLE therapists REPLICA IDENTITY FULL;
+ALTER TABLE fixed_shifts REPLICA IDENTITY FULL;
+ALTER TABLE one_off_bookings REPLICA IDENTITY FULL;
+
+-- הפעלת ערוץ הפרסום של Supabase
+BEGIN;
+  DROP PUBLICATION IF EXISTS supabase_realtime;
+  CREATE PUBLICATION supabase_realtime FOR ALL TABLES;
+COMMIT;
 `;
