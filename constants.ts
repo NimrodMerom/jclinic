@@ -28,7 +28,7 @@ export const INITIAL_THERAPISTS: Therapist[] = [
 export const WEEK_DAYS_HE = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
 export const SQL_SCHEMA_DOC = `
--- 1. מחיקת טבלאות קודמות
+-- 1. ניקוי לוחות
 DROP TABLE IF EXISTS one_off_bookings;
 DROP TABLE IF EXISTS fixed_shifts;
 DROP TABLE IF EXISTS therapists;
@@ -64,17 +64,22 @@ CREATE TABLE one_off_bookings (
     type TEXT DEFAULT 'booking'
 );
 
--- 3. ביטול אבטחה (RLS) - קריטי!
+-- 3. ביטול אבטחת שורות (חובה!)
 ALTER TABLE therapists DISABLE ROW LEVEL SECURITY;
 ALTER TABLE fixed_shifts DISABLE ROW LEVEL SECURITY;
 ALTER TABLE one_off_bookings DISABLE ROW LEVEL SECURITY;
 
--- 4. הענקת הרשאות מלאות לכולם
+-- 4. הענקת הרשאות מלאות (זה מה שחיפשת!)
 GRANT ALL ON therapists TO anon, authenticated, service_role;
 GRANT ALL ON fixed_shifts TO anon, authenticated, service_role;
 GRANT ALL ON one_off_bookings TO anon, authenticated, service_role;
 
--- 5. וידוא שכל הבקשות מורשות
-GRANT ALL ON ALL TABLES IN SCHEMA public TO anon;
-GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
+-- 5. הענקת הרשאות גורפת לכל הסכימה הציבורית
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated;
+
+-- וידוא הרשאות למשתמש האנונימי
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO authenticated;
 `;
