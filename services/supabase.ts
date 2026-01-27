@@ -114,7 +114,10 @@ export const db = {
       start_time: s.startTime,
       end_time: s.endTime
     });
-    if (error) throw error;
+    if (error) {
+        console.error("Supabase error saving fixed shift:", error);
+        throw error;
+    }
   },
 
   async deleteFixedShift(id: string) {
@@ -147,9 +150,12 @@ export const db = {
       date: b.date,
       start_time: b.startTime,
       end_time: b.endTime,
-      type: b.type
+      type: b.type || 'booking'
     });
-    if (error) throw error;
+    if (error) {
+        console.error("Supabase error saving one-off:", error);
+        throw error;
+    }
   },
 
   async deleteOneOffBooking(id: string) {
