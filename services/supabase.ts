@@ -41,7 +41,7 @@ export const subscribeToChanges = (onUpdate: () => void) => {
   if (!supabase) return () => {};
 
   const channel = supabase
-    .channel('db-sync-channel')
+    .channel('db-changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'therapists' }, onUpdate)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'fixed_shifts' }, onUpdate)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'one_off_bookings' }, onUpdate)
@@ -52,21 +52,22 @@ export const subscribeToChanges = (onUpdate: () => void) => {
   };
 };
 
-// Ensure time is HH:MM:SS
 const formatTimeForDb = (time: string) => {
   if (!time) return '00:00:00';
-  const parts = time.split(':');
-  if (parts.length === 2) return `${time}:00`;
-  return time;
+  return time.split(':').length === 2 ? `${time}:00` : time;
 };
 
 const handleSupabaseError = (error: any, context: string) => {
-  console.error(`Supabase Error [${context}]:`, error);
+  console.error(`Supabase Error during ${context}:`, error);
   const code = error.code || 'UNKNOWN';
   const message = error.message || 'שגיאה לא ידועה';
   
-  if (code === '42501') throw new Error(`שגיאת הרשאות (42501): השרת מסרב לקבל נתונים. נא להריץ מחדש את ה-SQL עם ה-GRANT ALL.`);
-  if (code === '23503') throw new Error(`שגיאת קשר (23503): המטפל לא נמצא בשרת. נסי לשמור שוב את המטפל.`);
+  if (code === '42501') {
+    throw new Error(`שגיאת הרשאות (42501): בסיס הנתונים נעול לכתיבה. חייבים להריץ את פקודות ה-GRANT מה-SQL שבתחתית הדף.`);
+  }
+  if (code === '23P01') {
+    throw new Error(`שגיאת כפילות (23P01): החדר כבר תפוס בשעה הזו.`);
+  }
   
   throw new Error(`${message} (קוד: ${code})`);
 };
@@ -117,7 +118,7 @@ export const db = {
       id: s.id,
       therapistId: s.therapist_id,
       roomId: s.room_id,
-      dayOfWeek: s.day_of_week,
+      dayOfWeek: s.day_of_week as any,
       startTime: s.start_time.substring(0, 5),
       endTime: s.end_time.substring(0, 5)
     }));
@@ -153,7 +154,7 @@ export const db = {
       date: b.date,
       startTime: b.start_time.substring(0, 5),
       endTime: b.end_time.substring(0, 5),
-      type: b.type
+      type: b.type as any
     }));
   },
 
