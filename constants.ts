@@ -28,12 +28,12 @@ export const INITIAL_THERAPISTS: Therapist[] = [
 export const WEEK_DAYS_HE = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
 export const SQL_SCHEMA_DOC = `
--- 1. ניקוי לוחות
-DROP TABLE IF EXISTS one_off_bookings;
-DROP TABLE IF EXISTS fixed_shifts;
-DROP TABLE IF EXISTS therapists;
+-- === שלב 1: מחיקה נקייה ===
+DROP TABLE IF EXISTS one_off_bookings CASCADE;
+DROP TABLE IF EXISTS fixed_shifts CASCADE;
+DROP TABLE IF EXISTS therapists CASCADE;
 
--- 2. יצירת טבלאות
+-- === שלב 2: יצירת טבלאות ===
 CREATE TABLE therapists (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -41,8 +41,8 @@ CREATE TABLE therapists (
     phone TEXT,
     email TEXT,
     payment_type TEXT,
-    fixed_shift_rate DECIMAL,
-    one_off_rate DECIMAL
+    fixed_shift_rate DECIMAL DEFAULT 0,
+    one_off_rate DECIMAL DEFAULT 0
 );
 
 CREATE TABLE fixed_shifts (
@@ -64,22 +64,23 @@ CREATE TABLE one_off_bookings (
     type TEXT DEFAULT 'booking'
 );
 
--- 3. ביטול אבטחת שורות (חובה!)
+-- === שלב 3: ביטול אבטחה (RLS) - קריטי! ===
 ALTER TABLE therapists DISABLE ROW LEVEL SECURITY;
 ALTER TABLE fixed_shifts DISABLE ROW LEVEL SECURITY;
 ALTER TABLE one_off_bookings DISABLE ROW LEVEL SECURITY;
 
--- 4. הענקת הרשאות מלאות (זה מה שחיפשת!)
-GRANT ALL ON therapists TO anon, authenticated, service_role;
-GRANT ALL ON fixed_shifts TO anon, authenticated, service_role;
-GRANT ALL ON one_off_bookings TO anon, authenticated, service_role;
+-- === שלב 4: הענקת הרשאות GRANT ALL (זה מה שהיה חסר) ===
+-- אנו מאפשרים למשתמשים אנונימיים (anon) ולמחוברים (authenticated) גישה מלאה
+GRANT ALL ON TABLE therapists TO anon, authenticated, service_role;
+GRANT ALL ON TABLE fixed_shifts TO anon, authenticated, service_role;
+GRANT ALL ON TABLE one_off_bookings TO anon, authenticated, service_role;
 
--- 5. הענקת הרשאות גורפת לכל הסכימה הציבורית
+-- הרשאות גורפות לכל מה שנמצא ב-public
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
 GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated;
 
--- וידוא הרשאות למשתמש האנונימי
+-- וידוא הרשאות גם לטבלאות שייווצרו בעתיד
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO authenticated;
 `;
