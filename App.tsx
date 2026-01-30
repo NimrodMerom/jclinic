@@ -10,10 +10,11 @@ import { CloudSetup } from './components/CloudSetup';
 import { FixedShift, OneOffBooking, Therapist } from './types';
 import { getInitialFixedShifts, getInitialOneOffs, getNextSunday } from './services/mockDb';
 import { db, isCloudEnabled, initSupabase, subscribeToChanges } from './services/supabase';
-import { 
-  ChevronRight, ChevronLeft, Calendar as CalendarIcon, Info, Filter, 
-  Settings, LayoutGrid, LayoutList, Calculator, CalendarClock, Cloud, CloudOff, RefreshCw, AlertTriangle, WifiOff
+import {
+  ChevronRight, ChevronLeft, Calendar as CalendarIcon, Info, Filter,
+  Settings, LayoutGrid, LayoutList, Calculator, CalendarClock, Cloud, CloudOff, RefreshCw, AlertTriangle, WifiOff, Share2, Check
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { ROOMS, INITIAL_THERAPISTS, WEEK_DAYS_HE } from './constants';
 
 const addDays = (date: Date, days: number): Date => {
@@ -80,6 +81,7 @@ const App: React.FC = () => {
   
   const [selectedRoomId, setSelectedRoomId] = useState<string>('all');
   const [selectedTherapistId, setSelectedTherapistId] = useState<string>('all');
+  const [linkCopied, setLinkCopied] = useState(false);
 
   // שימוש ב-Ref כדי למנוע דריסה של הנתונים בזמן שאנחנו מבצעים פעולת כתיבה
   const syncLockRef = useRef<number>(0);
@@ -232,6 +234,24 @@ const App: React.FC = () => {
 
   const goToToday = () => setCurrentDate(new Date());
 
+  const handleShareSchedule = async () => {
+    const scheduleUrl = `${window.location.origin}/schedule`;
+    try {
+      await navigator.clipboard.writeText(scheduleUrl);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch (e) {
+      const textArea = document.createElement('textarea');
+      textArea.value = scheduleUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    }
+  };
+
   const visibleRooms = selectedRoomId === 'all' ? ROOMS : ROOMS.filter(r => r.id === selectedRoomId);
   const visibleFixedShifts = selectedTherapistId === 'all' ? fixedShifts : fixedShifts.filter(fs => fs.therapistId === selectedTherapistId);
   const visibleOneOffs = selectedTherapistId === 'all' ? oneOffBookings : oneOffBookings.filter(ob => ob.therapistId === selectedTherapistId);
@@ -310,6 +330,17 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex gap-2 w-full xl:w-auto justify-end flex-wrap">
+          <button
+            onClick={handleShareSchedule}
+            className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all border shadow-sm ${
+              linkCopied
+                ? 'bg-green-600 border-green-700 text-white'
+                : 'bg-purple-600 border-purple-700 text-white hover:bg-purple-700'
+            }`}
+          >
+            {linkCopied ? <Check size={18} /> : <Share2 size={18} />}
+            <span className="hidden md:inline">{linkCopied ? 'הועתק!' : 'שתף לוח'}</span>
+          </button>
           <button onClick={() => setIsCloudOpen(true)} className={`hidden xl:flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all border shadow-sm ${cloudActive ? 'bg-green-600 border-green-700 text-white hover:bg-green-700' : 'bg-orange-500 border-orange-600 text-white hover:bg-orange-600'}`}>
             {cloudActive ? <Cloud size={18} /> : <CloudOff size={18} />} {cloudActive ? 'מסונכרן' : 'התחבר לענן'}
           </button>
