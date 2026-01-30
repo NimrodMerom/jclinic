@@ -12,7 +12,7 @@ import { getInitialFixedShifts, getInitialOneOffs, getNextSunday } from './servi
 import { db, isCloudEnabled, initSupabase, subscribeToChanges } from './services/supabase';
 import {
   ChevronRight, ChevronLeft, Calendar as CalendarIcon, Info, Filter,
-  Settings, LayoutGrid, LayoutList, Calculator, CalendarClock, Cloud, CloudOff, RefreshCw, AlertTriangle, WifiOff, Share2, Check
+  Settings, LayoutGrid, LayoutList, Calculator, CalendarClock, Cloud, CloudOff, RefreshCw, AlertTriangle, WifiOff, Share2, Check, Columns
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ROOMS, INITIAL_THERAPISTS, WEEK_DAYS_HE } from './constants';
@@ -54,7 +54,7 @@ const formatIsoDate = (date: Date): string => {
 
 const App: React.FC = () => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date(getNextSunday()));
-  const [viewMode, setViewMode] = useState<'day' | 'month'>('day');
+  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day');
   
   const [fixedShifts, setFixedShifts] = useState<FixedShift[]>(() => {
     const saved = localStorage.getItem('clinic_fixed_shifts');
@@ -224,12 +224,22 @@ const App: React.FC = () => {
 
   const next = () => {
     if (viewMode === 'day') setCurrentDate(addDays(currentDate, 1));
+    else if (viewMode === 'week') setCurrentDate(addDays(currentDate, 7));
     else setCurrentDate(addMonths(currentDate, 1));
   };
 
   const prev = () => {
     if (viewMode === 'day') setCurrentDate(addDays(currentDate, -1));
+    else if (viewMode === 'week') setCurrentDate(addDays(currentDate, -7));
     else setCurrentDate(addMonths(currentDate, -1));
+  };
+
+  const getWeekRange = (date: Date): string => {
+    const startOfWeek = new Date(date);
+    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(endOfWeek.getDate() + 6);
+    return `${startOfWeek.getDate()}/${startOfWeek.getMonth() + 1} - ${endOfWeek.getDate()}/${endOfWeek.getMonth() + 1}`;
   };
 
   const goToToday = () => setCurrentDate(new Date());
@@ -302,11 +312,14 @@ const App: React.FC = () => {
         
         <div className="flex flex-col md:flex-row gap-4 items-center w-full xl:w-auto">
           <div className="flex bg-gray-100 p-1 rounded-lg order-2 md:order-1">
-            <button onClick={() => setViewMode('day')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'day' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-              <LayoutList size={16} /> יומי
+            <button onClick={() => setViewMode('day')} className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'day' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              <LayoutList size={16} /> <span className="hidden sm:inline">יומי</span>
             </button>
-            <button onClick={() => setViewMode('month')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'month' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-              <LayoutGrid size={16} /> חודשי
+            <button onClick={() => setViewMode('week')} className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'week' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              <Columns size={16} /> <span className="hidden sm:inline">שבועי</span>
+            </button>
+            <button onClick={() => setViewMode('month')} className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'month' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              <LayoutGrid size={16} /> <span className="hidden sm:inline">חודשי</span>
             </button>
           </div>
 
@@ -321,6 +334,11 @@ const App: React.FC = () => {
                   <div className="flex flex-col items-center">
                     <span className="text-xl md:text-2xl font-black text-gray-800 leading-none">{WEEK_DAYS_HE[currentDate.getDay()]}</span>
                     <span className="text-xs md:text-sm text-gray-500 font-medium">{formatDisplayDate(currentDate)}</span>
+                  </div>
+                ) : viewMode === 'week' ? (
+                  <div className="flex flex-col items-center">
+                    <span className="text-lg md:text-xl font-black text-gray-800 leading-none">שבוע</span>
+                    <span className="text-xs md:text-sm text-gray-500 font-medium">{getWeekRange(currentDate)}</span>
                   </div>
                 ) : <span className="text-xl md:text-2xl font-black text-gray-800">{formatMonthYear(currentDate)}</span>}
               </div>
