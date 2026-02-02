@@ -7,8 +7,8 @@ import { Clock, Calendar as CalendarIcon, UserX, Trash2, X, ExternalLink, MapPin
 
 interface CalendarProps {
   currentDate: Date;
-  viewMode: 'day' | 'month';
-  onViewChange: (mode: 'day' | 'month') => void;
+  viewMode: 'day' | 'week' | 'month';
+  onViewChange: (mode: 'day' | 'week' | 'month') => void;
   onDateSelect: (date: Date) => void;
   fixedShifts: FixedShift[];
   oneOffBookings: OneOffBooking[];
@@ -53,6 +53,19 @@ const getMonthDays = (baseDate: Date) => {
     return days;
 };
 
+const getWeekDays = (baseDate: Date): Date[] => {
+    const startOfWeek = new Date(baseDate);
+    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+
+    const days: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+        const day = new Date(startOfWeek);
+        day.setDate(day.getDate() + i);
+        days.push(day);
+    }
+    return days;
+};
+
 export const Calendar: React.FC<CalendarProps> = ({ 
   currentDate, viewMode, onViewChange, onDateSelect, fixedShifts, oneOffBookings, onSlotClick, rooms, therapists, onDeleteEvent
 }) => {
@@ -77,6 +90,7 @@ export const Calendar: React.FC<CalendarProps> = ({
   }, [rooms, fixedShifts, oneOffBookings, currentDate]);
 
   const monthDays = useMemo(() => getMonthDays(currentDate), [currentDate]);
+  const weekDays = useMemo(() => getWeekDays(currentDate), [currentDate]);
 
   const summaryEvents = useMemo(() => {
     if (!selectedDaySummary) return [];
@@ -95,8 +109,8 @@ export const Calendar: React.FC<CalendarProps> = ({
     }
   };
 
-  const getEventStyle = (event: RenderableEvent) => {
-    const dayStart = new Date(currentDate);
+  const getEventStyle = (event: RenderableEvent, forDate?: Date) => {
+    const dayStart = new Date(forDate || currentDate);
     dayStart.setHours(OPENING_HOUR, 0, 0, 0);
     const startMins = getDifferenceInMinutes(event.start, dayStart);
     const durationMins = getDifferenceInMinutes(event.end, event.start);
@@ -204,6 +218,103 @@ export const Calendar: React.FC<CalendarProps> = ({
     );
   }
 
+  // Weekly view
+  if (viewMode === 'week') {
+    return (
+      <div className="flex flex-col h-full bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="flex border-b border-gray-200 bg-gray-50">
+          <div className="w-16 flex-shrink-0 border-l border-gray-200 bg-gray-50 flex items-center justify-center p-2">
+            <Clock className="text-gray-400" size={18} />
+          </div>
+          {weekDays.map((day, i) => {
+            const isToday = day.toDateString() === new Date().toDateString();
+            return (
+              <div
+                key={i}
+                className={`flex-1 p-2 text-center border-l border-gray-200 last:border-l-0 cursor-pointer hover:bg-indigo-50 transition-colors ${isToday ? 'bg-indigo-50' : ''}`}
+                onClick={() => { onDateSelect(day); onViewChange('day'); }}
+              >
+                <div className="text-xs text-gray-500 font-medium">{WEEK_DAYS_HE[day.getDay()]}</div>
+                <div className={`text-lg font-bold ${isToday ? 'text-indigo-600' : 'text-gray-700'}`}>{day.getDate()}</div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex-1 overflow-y-auto relative min-h-[500px]">
+          <div className="flex absolute inset-0 min-h-full">
+            <div className="w-16 flex-shrink-0 bg-gray-50 border-l border-gray-200 text-[10px] text-gray-500 font-medium select-none">
+              {timeSlots.map((time, i) => (
+                <div key={i} className="border-b border-gray-100 flex items-start justify-center pt-0.5" style={{ height: `${100 / timeSlots.length}%` }}>
+                  {formatTime(time)}
+                </div>
+              ))}
+            </div>
+            {weekDays.map((day, dayIndex) => {
+              const dayEvents = mergeSchedules(rooms, fixedShifts, oneOffBookings, day);
+              const isToday = day.toDateString() === new Date().toDateString();
+              return (
+                <div
+                  key={dayIndex}
+                  className={`flex-1 relative border-l border-gray-200 last:border-l-0 transition-colors ${isToday ? 'bg-indigo-50/30' : 'bg-white'}`}
+                >
+                  {timeSlots.map((_, i) => (
+                    <div key={i} className="w-full border-b border-gray-100" style={{ height: `${100 / timeSlots.length}%` }}></div>
+                  ))}
+                  <div className="absolute inset-0 cursor-pointer z-0" onClick={() => { onDateSelect(day); onSlotClick(); }} />
+                  {dayEvents.map(event => {
+                    const therapist = getTherapist(event.therapistId);
+                    const room = getRoom(event.roomId);
+                    const isOneOff = event.type === 'one-off';
+                    const isAbsence = event.subType === 'absence';
+                    let bgClasses = therapist?.color || 'bg-gray-100 text-gray-800';
+                    let borderClasses = '';
+                    if (isAbsence) {
+                      bgClasses = 'bg-gray-100 text-gray-500 opacity-90';
+                      borderClasses = 'border-l-2 border-red-400';
+                    } else if (isOneOff) {
+                      borderClasses = 'ring-1 ring-indigo-500 z-20';
+                    }
+                    return (
+                      <div
+                        key={event.id}
+                        className={`absolute inset-x-0.5 rounded-sm p-0.5 text-[9px] border shadow-sm z-10 overflow-hidden transition-all hover:brightness-95 group/item ${bgClasses} ${borderClasses}`}
+                        style={getEventStyle(event, day)}
+                        title={`${therapist?.name} - ${room?.name}\n${formatTime(event.start)} - ${formatTime(event.end)}`}
+                      >
+                        <div className="font-bold truncate leading-tight">
+                          {therapist?.name.split(' ')[0]}
+                        </div>
+                        <div className="opacity-70 truncate leading-tight hidden sm:block">
+                          {room?.name.replace('חדר ', '')}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="p-2 bg-gray-50 border-t border-gray-200 flex gap-4 text-xs flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded bg-emerald-100 border border-emerald-500"></div>
+            <span>קבוע</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded bg-purple-100 border border-purple-500 ring-1 ring-indigo-500"></div>
+            <span>חריג</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded bg-gray-100 border-l-2 border-red-400"></div>
+            <span>היעדרות</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Monthly view
   return (
     <div className="flex flex-col h-full bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative">
        <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">

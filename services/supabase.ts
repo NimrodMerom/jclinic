@@ -4,16 +4,29 @@ import { Therapist, FixedShift, OneOffBooking, PaymentType } from '../types';
 
 let supabase: SupabaseClient | null = null;
 
-const storedUrl = localStorage.getItem('supabase_url');
-const storedKey = localStorage.getItem('supabase_key');
+// Priority 1: Environment variables (set in Vercel)
+const envUrl = import.meta.env.VITE_SUPABASE_URL;
+const envKey = import.meta.env.VITE_SUPABASE_KEY;
 
-if (storedUrl && storedKey) {
+// Priority 2: localStorage (manual setup)
+const storedUrl = typeof localStorage !== 'undefined' ? localStorage.getItem('supabase_url') : null;
+const storedKey = typeof localStorage !== 'undefined' ? localStorage.getItem('supabase_key') : null;
+
+// Use env vars first, then localStorage
+const supabaseUrl = envUrl || storedUrl;
+const supabaseKey = envKey || storedKey;
+
+if (supabaseUrl && supabaseKey) {
   try {
-    supabase = createClient(storedUrl, storedKey);
+    supabase = createClient(supabaseUrl, supabaseKey);
+    console.log('Supabase connected:', envUrl ? 'via environment' : 'via localStorage');
   } catch (e) {
     console.error("Failed to auto-init Supabase:", e);
   }
 }
+
+// Check if using built-in (environment) config
+export const isBuiltInConfig = () => !!(envUrl && envKey);
 
 export const initSupabase = (url: string, key: string) => {
   supabase = createClient(url, key);
