@@ -5,8 +5,15 @@ import { Therapist, FixedShift, OneOffBooking, PaymentType } from '../types';
 let supabase: SupabaseClient | null = null;
 
 // Priority 1: Environment variables (set in Vercel)
-const envUrl = import.meta.env.VITE_SUPABASE_URL;
-const envKey = import.meta.env.VITE_SUPABASE_KEY;
+const envUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const envKey = import.meta.env.VITE_SUPABASE_KEY as string | undefined;
+
+// Debug: log environment variable status
+console.log('ENV CHECK:', {
+  hasEnvUrl: !!envUrl,
+  hasEnvKey: !!envKey,
+  envUrlPreview: envUrl ? envUrl.substring(0, 20) + '...' : 'NOT SET'
+});
 
 // Priority 2: localStorage (manual setup)
 const storedUrl = typeof localStorage !== 'undefined' ? localStorage.getItem('supabase_url') : null;
