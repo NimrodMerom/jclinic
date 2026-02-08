@@ -193,6 +193,8 @@ const App: React.FC = () => {
 
   const handleAddTherapist = async (therapist: Therapist) => {
     syncLockRef.current = Date.now();
+    // Update ref immediately to prevent race condition with shift assignment
+    therapistsRef.current = [...therapistsRef.current.filter(t => t.id !== therapist.id), therapist];
     setTherapists(prev => {
       const exists = prev.find(t => t.id === therapist.id);
       if (exists) return prev.map(t => t.id === therapist.id ? therapist : t);
