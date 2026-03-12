@@ -269,7 +269,7 @@ const App: React.FC = () => {
   const visibleOneOffs = selectedTherapistId === 'all' ? oneOffBookings : oneOffBookings.filter(ob => ob.therapistId === selectedTherapistId);
 
   return (
-    <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto font-sans text-gray-900">
+    <div className="min-h-screen p-4 md:p-6 lg:p-8 max-w-7xl mx-auto font-sans text-gray-900">
       {/* התראת שגיאה קריטית - לא נעלמת אוטומטית עד שמתקנים */}
       {errorMsg && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-lg">
@@ -298,17 +298,17 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <header className="mb-6 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+      <header className="mb-6 glass rounded-2xl p-4 md:p-6 border border-white/60 shadow-lg shadow-indigo-100/30 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-3xl font-extrabold text-indigo-900 tracking-tight flex items-center gap-3">
+            <h1 className="text-2xl md:text-3xl font-extrabold bg-gradient-to-l from-indigo-600 to-purple-600 bg-clip-text text-transparent tracking-tight flex items-center gap-3">
               ClinicFlow
               {isLoading && <RefreshCw className="animate-spin text-indigo-300" size={20} />}
             </h1>
-            <p className="text-gray-500 mt-1">ניהול חדרים היברידי (קבועים + חריגים)</p>
+            <p className="text-gray-400 mt-0.5 text-sm font-medium">ניהול חדרים היברידי</p>
           </div>
-          <button onClick={() => setIsCloudOpen(true)} className={`xl:hidden p-3 rounded-full shadow-md transition-transform active:scale-95 ${cloudActive ? 'bg-green-600 text-white' : 'bg-orange-500 text-white'}`}>
-            {cloudActive ? <Cloud size={24} /> : <CloudOff size={24} />}
+          <button onClick={() => setIsCloudOpen(true)} className={`xl:hidden p-2.5 rounded-xl shadow-md transition-all active:scale-95 ${cloudActive ? 'bg-emerald-500 text-white shadow-emerald-200' : 'bg-orange-500 text-white shadow-orange-200'}`}>
+            {cloudActive ? <Cloud size={22} /> : <CloudOff size={22} />}
           </button>
         </div>
         
@@ -370,28 +370,28 @@ const App: React.FC = () => {
           <button onClick={() => setIsManagerOpen(true)} className="bg-white text-gray-700 border border-gray-300 px-3 py-3 rounded-lg font-medium hover:bg-gray-50 transition-all flex items-center gap-2 shadow-sm">
             <Settings size={18} /> <span className="hidden md:inline">מטפלים</span>
           </button>
-          <button onClick={() => handleSlotClick()} className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-medium shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center gap-2">
+          <button onClick={() => handleSlotClick()} className="btn-primary text-white px-6 py-3 rounded-xl font-semibold shadow-lg shadow-indigo-200/50 flex items-center gap-2">
             <CalendarIcon size={18} /> שיבוץ חדש
           </button>
         </div>
       </header>
 
       <main className="space-y-6">
-        <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center">
-          <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-200 flex flex-col md:flex-row gap-3 items-center flex-1">
-            <div className="flex items-center gap-2 text-gray-500 font-medium text-sm pl-2"><Filter size={18} /> <span>סינון:</span></div>
-            <select value={selectedRoomId} onChange={(e) => setSelectedRoomId(e.target.value)} className="bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-md focus:ring-indigo-500 block w-full p-2">
+        <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
+          <div className="glass p-3 rounded-xl border border-white/60 shadow-sm flex flex-col md:flex-row gap-3 items-center flex-1">
+            <div className="flex items-center gap-2 text-gray-400 font-semibold text-xs uppercase tracking-wider pl-2"><Filter size={16} /> <span>סינון</span></div>
+            <select value={selectedRoomId} onChange={(e) => setSelectedRoomId(e.target.value)} className="bg-white/80 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 block w-full p-2.5 outline-none transition-all">
               <option value="all">כל החדרים</option>
               {ROOMS.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}
             </select>
-            <select value={selectedTherapistId} onChange={(e) => setSelectedTherapistId(e.target.value)} className="bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-md focus:ring-indigo-500 block w-full p-2">
+            <select value={selectedTherapistId} onChange={(e) => setSelectedTherapistId(e.target.value)} className="bg-white/80 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 block w-full p-2.5 outline-none transition-all">
               <option value="all">כל המטפלים</option>
               {therapists.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </div>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-3 md:max-w-xl">
-            <Info className="text-blue-500 flex-shrink-0" size={20} />
-            <div className="text-xs text-blue-800">{cloudActive ? 'הנתונים מסונכרנים בזמן אמת לענן.' : 'עבודה במצב מקומי. הנתונים נשמרים בדפדפן בלבד.'}</div>
+          <div className={`rounded-xl p-3 flex items-center gap-3 md:max-w-sm border ${cloudActive ? 'bg-emerald-50/80 border-emerald-200/60' : 'bg-amber-50/80 border-amber-200/60'}`}>
+            <div className={`w-2 h-2 rounded-full ${cloudActive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></div>
+            <div className={`text-xs font-medium ${cloudActive ? 'text-emerald-700' : 'text-amber-700'}`}>{cloudActive ? 'מסונכרן בזמן אמת' : 'מצב מקומי בלבד'}</div>
           </div>
         </div>
 

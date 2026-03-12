@@ -135,15 +135,15 @@ export const PublicSchedule: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto font-sans text-gray-900 bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-      <header className="mb-6 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+    <div className="min-h-screen p-4 md:p-6 lg:p-8 max-w-7xl mx-auto font-sans text-gray-900">
+      <header className="mb-6 glass rounded-2xl p-4 md:p-6 border border-white/60 shadow-lg shadow-indigo-100/30 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-3xl font-extrabold text-indigo-900 tracking-tight flex items-center gap-3">
+            <h1 className="text-2xl md:text-3xl font-extrabold bg-gradient-to-l from-indigo-600 to-purple-600 bg-clip-text text-transparent tracking-tight flex items-center gap-3">
               לוח משמרות
               {isLoading && <RefreshCw className="animate-spin text-indigo-300" size={20} />}
             </h1>
-            <p className="text-gray-500 mt-1">צפייה בלוח המשמרות של הקליניקה</p>
+            <p className="text-gray-400 mt-0.5 text-sm font-medium">צפייה בלוח המשמרות של הקליניקה</p>
           </div>
         </div>
 
@@ -198,7 +198,7 @@ export const PublicSchedule: React.FC = () => {
           </button>
           <Link
             to="/"
-            className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-medium shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center gap-2"
+            className="btn-primary text-white px-6 py-3 rounded-xl font-semibold shadow-lg shadow-indigo-200/50 flex items-center gap-2"
           >
             <ExternalLink size={18} /> ניהול מלא
           </Link>
@@ -206,14 +206,14 @@ export const PublicSchedule: React.FC = () => {
       </header>
 
       <main className="space-y-6">
-        <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-200 flex flex-col md:flex-row gap-3 items-center">
-          <div className="flex items-center gap-2 text-gray-500 font-medium text-sm pl-2">
-            <Filter size={18} /> <span>סינון:</span>
+        <div className="glass p-3 rounded-xl border border-white/60 shadow-sm flex flex-col md:flex-row gap-3 items-center">
+          <div className="flex items-center gap-2 text-gray-400 font-semibold text-xs uppercase tracking-wider pl-2">
+            <Filter size={16} /> <span>סינון</span>
           </div>
           <select
             value={selectedRoomId}
             onChange={(e) => setSelectedRoomId(e.target.value)}
-            className="bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-md focus:ring-indigo-500 block w-full md:w-auto p-2"
+            className="bg-white/80 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 block w-full md:w-auto p-2.5 outline-none transition-all"
           >
             <option value="all">כל החדרים</option>
             {ROOMS.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}
@@ -221,7 +221,7 @@ export const PublicSchedule: React.FC = () => {
           <select
             value={selectedTherapistId}
             onChange={(e) => setSelectedTherapistId(e.target.value)}
-            className="bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-md focus:ring-indigo-500 block w-full md:w-auto p-2"
+            className="bg-white/80 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 block w-full md:w-auto p-2.5 outline-none transition-all"
           >
             <option value="all">כל המטפלים</option>
             {therapists.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -243,8 +243,11 @@ export const PublicSchedule: React.FC = () => {
         </div>
       </main>
 
-      <footer className="mt-8 text-center text-gray-400 text-sm">
-        <p>לוח משמרות זה מתעדכן בזמן אמת</p>
+      <footer className="mt-8 text-center text-gray-300 text-xs font-medium">
+        <div className="flex items-center justify-center gap-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></div>
+          <p>מתעדכן בזמן אמת</p>
+        </div>
       </footer>
     </div>
   );
