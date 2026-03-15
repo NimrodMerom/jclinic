@@ -126,89 +126,98 @@ export const Calendar: React.FC<CalendarProps> = ({
   if (viewMode === 'day') {
     return (
       <div className="flex flex-col h-full bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="flex border-b border-gray-200 bg-gray-50">
-          <div className="w-20 flex-shrink-0 border-l border-gray-200 bg-gray-50 flex items-center justify-center p-2">
-             <Clock className="text-gray-400" size={20} />
+        {/* Horizontal scroll hint for mobile when multiple rooms */}
+        {rooms.length > 2 && (
+          <div className="md:hidden bg-indigo-50 text-indigo-600 text-xs text-center py-1.5 font-medium border-b border-indigo-100 flex items-center justify-center gap-2">
+            <span>←</span> גלול הצידה לראות את כל החדרים <span>→</span>
           </div>
-          {rooms.map(room => (
-            <div key={room.id} className="flex-1 p-3 text-center font-bold text-gray-700 border-l border-gray-200 last:border-l-0">
-              {room.name}
-            </div>
-          ))}
-        </div>
+        )}
 
-        <div className="flex-1 overflow-y-auto relative min-h-[600px]">
-          <div className="flex absolute inset-0 min-h-full">
-            <div className="w-20 flex-shrink-0 bg-gray-50 border-l border-gray-200 text-xs text-gray-500 font-medium select-none">
-              {timeSlots.map((time, i) => (
-                <div key={i} className="h-12 border-b border-gray-100 flex items-start justify-center pt-1" style={{ height: `${100 / timeSlots.length}%` }}>
-                  {formatTime(time)}
-                </div>
-              ))}
+        <div className="overflow-x-auto flex-1 flex flex-col">
+          <div className={`flex border-b border-gray-200 bg-gray-50 ${rooms.length > 2 ? 'min-w-[500px]' : ''}`}>
+            <div className="w-16 md:w-20 flex-shrink-0 border-l border-gray-200 bg-gray-50 flex items-center justify-center p-2">
+               <Clock className="text-gray-400" size={20} />
             </div>
-            {rooms.map((room) => (
-              <div key={room.id} className="flex-1 relative border-l border-gray-200 last:border-l-0 bg-white group hover:bg-gray-50/50 transition-colors">
-                {timeSlots.map((_, i) => (
-                   <div key={i} className="w-full border-b border-gray-100" style={{ height: `${100 / timeSlots.length}%` }}></div>
-                ))}
-                <div className="absolute inset-0 cursor-pointer z-0" onClick={onSlotClick} />
-                {dailyEvents.filter(e => e.roomId === room.id).map(event => {
-                    const therapist = getTherapist(event.therapistId);
-                    const isOneOff = event.type === 'one-off';
-                    const isAbsence = event.subType === 'absence';
-                    let bgClasses = therapist?.color || 'bg-gray-100 text-gray-800';
-                    let borderClasses = '';
-                    if (isAbsence) {
-                      bgClasses = 'bg-gray-100 text-gray-500 opacity-90'; 
-                      borderClasses = 'border-l-4 border-red-400';
-                    } else if (isOneOff) {
-                      borderClasses = 'ring-2 ring-indigo-500 ring-offset-1 z-20';
-                    }
-                    return (
-                      <div
-                        key={event.id}
-                        className={`absolute inset-x-1 rounded-md p-2 text-xs border shadow-sm z-10 flex flex-col justify-between overflow-hidden transition-all hover:brightness-95 group/item ${bgClasses} ${borderClasses}`}
-                        style={getEventStyle(event)}
-                      >
-                        {isAbsence && (
-                          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'linear-gradient(45deg, #000 25%, transparent 25%, transparent 50%, #000 50%, #000 75%, transparent 75%, transparent)', backgroundSize: '10px 10px' }}></div>
-                        )}
-                        <div className="font-bold flex items-center justify-between relative z-10">
-                          <span className={`truncate ${isAbsence ? 'line-through decoration-red-500 decoration-2' : ''}`}>
-                            {therapist?.name}
-                          </span>
-                          <div className="flex items-center gap-1">
-                            {isAbsence ? (
-                               <UserX size={14} className="text-red-500 flex-shrink-0" />
-                            ) : isOneOff && (
-                               <CalendarIcon size={12} className="text-indigo-600 flex-shrink-0" />
-                            )}
-                            <button onClick={(e) => handleDelete(e, event)} className="hidden group-hover/item:flex items-center justify-center p-1 hover:bg-black/10 rounded transition-colors text-red-600">
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
-                        </div>
-                        <div className="opacity-75 relative z-10">
-                           {formatTime(event.start)} - {formatTime(event.end)}
-                        </div>
-                      </div>
-                    );
-                  })}
+            {rooms.map(room => (
+              <div key={room.id} className={`flex-1 p-2 md:p-3 text-center font-bold text-gray-700 border-l border-gray-200 last:border-l-0 text-sm md:text-base ${rooms.length > 2 ? 'min-w-[120px]' : ''}`}>
+                {room.name}
               </div>
             ))}
           </div>
+
+          <div className="flex-1 overflow-y-auto relative min-h-[400px] md:min-h-[600px]">
+            <div className={`flex absolute inset-0 min-h-full ${rooms.length > 2 ? 'min-w-[500px]' : ''}`}>
+              <div className="w-16 md:w-20 flex-shrink-0 bg-gray-50 border-l border-gray-200 text-xs text-gray-500 font-medium select-none">
+                {timeSlots.map((time, i) => (
+                  <div key={i} className="h-12 border-b border-gray-100 flex items-start justify-center pt-1" style={{ height: `${100 / timeSlots.length}%` }}>
+                    {formatTime(time)}
+                  </div>
+                ))}
+              </div>
+              {rooms.map((room) => (
+                <div key={room.id} className={`flex-1 relative border-l border-gray-200 last:border-l-0 bg-white group hover:bg-gray-50/50 transition-colors ${rooms.length > 2 ? 'min-w-[120px]' : ''}`}>
+                  {timeSlots.map((_, i) => (
+                     <div key={i} className="w-full border-b border-gray-100" style={{ height: `${100 / timeSlots.length}%` }}></div>
+                  ))}
+                  <div className="absolute inset-0 cursor-pointer z-0" onClick={onSlotClick} />
+                  {dailyEvents.filter(e => e.roomId === room.id).map(event => {
+                      const therapist = getTherapist(event.therapistId);
+                      const isOneOff = event.type === 'one-off';
+                      const isAbsence = event.subType === 'absence';
+                      let bgClasses = therapist?.color || 'bg-gray-100 text-gray-800';
+                      let borderClasses = '';
+                      if (isAbsence) {
+                        bgClasses = 'bg-gray-100 text-gray-500 opacity-90';
+                        borderClasses = 'border-l-4 border-red-400';
+                      } else if (isOneOff) {
+                        borderClasses = 'ring-2 ring-indigo-500 ring-offset-1 z-20';
+                      }
+                      return (
+                        <div
+                          key={event.id}
+                          className={`absolute inset-x-1 rounded-md p-1.5 md:p-2 text-xs md:text-sm border shadow-sm z-10 flex flex-col justify-between overflow-hidden transition-all hover:brightness-95 group/item ${bgClasses} ${borderClasses}`}
+                          style={getEventStyle(event)}
+                        >
+                          {isAbsence && (
+                            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'linear-gradient(45deg, #000 25%, transparent 25%, transparent 50%, #000 50%, #000 75%, transparent 75%, transparent)', backgroundSize: '10px 10px' }}></div>
+                          )}
+                          <div className="font-bold flex items-center justify-between relative z-10">
+                            <span className={`truncate text-[11px] md:text-xs ${isAbsence ? 'line-through decoration-red-500 decoration-2' : ''}`}>
+                              {therapist?.name}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              {isAbsence ? (
+                                 <UserX size={14} className="text-red-500 flex-shrink-0" />
+                              ) : isOneOff && (
+                                 <CalendarIcon size={12} className="text-indigo-600 flex-shrink-0" />
+                              )}
+                              <button onClick={(e) => handleDelete(e, event)} className="hidden group-hover/item:flex items-center justify-center p-1 hover:bg-black/10 rounded transition-colors text-red-600">
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </div>
+                          <div className="opacity-75 relative z-10 text-[10px] md:text-xs">
+                             {formatTime(event.start)} - {formatTime(event.end)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-        <div className="p-3 bg-gray-50 border-t border-gray-200 flex gap-6 text-sm flex-wrap">
-           <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-emerald-100 border border-emerald-500"></div>
-              <span>משמרת קבועה</span>
+        <div className="p-2 md:p-3 bg-gray-50 border-t border-gray-200 flex gap-3 md:gap-6 text-xs md:text-sm flex-wrap">
+           <div className="flex items-center gap-1.5 md:gap-2">
+              <div className="w-3 h-3 md:w-4 md:h-4 rounded bg-emerald-100 border border-emerald-500"></div>
+              <span>קבוע</span>
            </div>
-           <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-purple-100 border border-purple-500 ring-2 ring-indigo-500 ring-offset-1"></div>
-              <span>חריג / תוספת</span>
+           <div className="flex items-center gap-1.5 md:gap-2">
+              <div className="w-3 h-3 md:w-4 md:h-4 rounded bg-purple-100 border border-purple-500 ring-2 ring-indigo-500 ring-offset-1"></div>
+              <span>חריג</span>
            </div>
-           <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-gray-100 border-l-4 border-red-400 relative overflow-hidden">
+           <div className="flex items-center gap-1.5 md:gap-2">
+              <div className="w-3 h-3 md:w-4 md:h-4 rounded bg-gray-100 border-l-4 border-red-400 relative overflow-hidden">
                  <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'linear-gradient(45deg, #000 25%, transparent 25%, transparent 50%, #000 50%, #000 75%, transparent 75%, transparent)', backgroundSize: '4px 4px' }}></div>
               </div>
               <span>היעדרות</span>
@@ -222,78 +231,85 @@ export const Calendar: React.FC<CalendarProps> = ({
   if (viewMode === 'week') {
     return (
       <div className="flex flex-col h-full bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="flex border-b border-gray-200 bg-gray-50">
-          <div className="w-16 flex-shrink-0 border-l border-gray-200 bg-gray-50 flex items-center justify-center p-2">
-            <Clock className="text-gray-400" size={18} />
-          </div>
-          {weekDays.map((day, i) => {
-            const isToday = day.toDateString() === new Date().toDateString();
-            return (
-              <div
-                key={i}
-                className={`flex-1 p-2 text-center border-l border-gray-200 last:border-l-0 cursor-pointer hover:bg-indigo-50 transition-colors ${isToday ? 'bg-indigo-50' : ''}`}
-                onClick={() => { onDateSelect(day); onViewChange('day'); }}
-              >
-                <div className="text-xs text-gray-500 font-medium">{WEEK_DAYS_HE[day.getDay()]}</div>
-                <div className={`text-lg font-bold ${isToday ? 'text-indigo-600' : 'text-gray-700'}`}>{day.getDate()}</div>
-              </div>
-            );
-          })}
+        {/* Horizontal scroll hint for mobile */}
+        <div className="md:hidden bg-indigo-50 text-indigo-600 text-xs text-center py-1.5 font-medium border-b border-indigo-100 flex items-center justify-center gap-2">
+          <span>←</span> גלול הצידה לראות את כל הימים <span>→</span>
         </div>
 
-        <div className="flex-1 overflow-y-auto relative min-h-[500px]">
-          <div className="flex absolute inset-0 min-h-full">
-            <div className="w-16 flex-shrink-0 bg-gray-50 border-l border-gray-200 text-[10px] text-gray-500 font-medium select-none">
-              {timeSlots.map((time, i) => (
-                <div key={i} className="border-b border-gray-100 flex items-start justify-center pt-0.5" style={{ height: `${100 / timeSlots.length}%` }}>
-                  {formatTime(time)}
-                </div>
-              ))}
+        <div className="overflow-x-auto flex-1 flex flex-col">
+          <div className="flex border-b border-gray-200 bg-gray-50 min-w-[600px]">
+            <div className="w-14 md:w-16 flex-shrink-0 border-l border-gray-200 bg-gray-50 flex items-center justify-center p-2">
+              <Clock className="text-gray-400" size={18} />
             </div>
-            {weekDays.map((day, dayIndex) => {
-              const dayEvents = mergeSchedules(rooms, fixedShifts, oneOffBookings, day);
+            {weekDays.map((day, i) => {
               const isToday = day.toDateString() === new Date().toDateString();
               return (
                 <div
-                  key={dayIndex}
-                  className={`flex-1 relative border-l border-gray-200 last:border-l-0 transition-colors ${isToday ? 'bg-indigo-50/30' : 'bg-white'}`}
+                  key={i}
+                  className={`flex-1 min-w-[70px] p-2 text-center border-l border-gray-200 last:border-l-0 cursor-pointer hover:bg-indigo-50 transition-colors ${isToday ? 'bg-indigo-50' : ''}`}
+                  onClick={() => { onDateSelect(day); onViewChange('day'); }}
                 >
-                  {timeSlots.map((_, i) => (
-                    <div key={i} className="w-full border-b border-gray-100" style={{ height: `${100 / timeSlots.length}%` }}></div>
-                  ))}
-                  <div className="absolute inset-0 cursor-pointer z-0" onClick={() => { onDateSelect(day); onSlotClick(); }} />
-                  {dayEvents.map(event => {
-                    const therapist = getTherapist(event.therapistId);
-                    const room = getRoom(event.roomId);
-                    const isOneOff = event.type === 'one-off';
-                    const isAbsence = event.subType === 'absence';
-                    let bgClasses = therapist?.color || 'bg-gray-100 text-gray-800';
-                    let borderClasses = '';
-                    if (isAbsence) {
-                      bgClasses = 'bg-gray-100 text-gray-500 opacity-90';
-                      borderClasses = 'border-l-2 border-red-400';
-                    } else if (isOneOff) {
-                      borderClasses = 'ring-1 ring-indigo-500 z-20';
-                    }
-                    return (
-                      <div
-                        key={event.id}
-                        className={`absolute inset-x-0.5 rounded-sm p-0.5 text-[9px] border shadow-sm z-10 overflow-hidden transition-all hover:brightness-95 group/item ${bgClasses} ${borderClasses}`}
-                        style={getEventStyle(event, day)}
-                        title={`${therapist?.name} - ${room?.name}\n${formatTime(event.start)} - ${formatTime(event.end)}`}
-                      >
-                        <div className="font-bold truncate leading-tight">
-                          {therapist?.name.split(' ')[0]}
-                        </div>
-                        <div className="opacity-70 truncate leading-tight hidden sm:block">
-                          {room?.name.replace('חדר ', '')}
-                        </div>
-                      </div>
-                    );
-                  })}
+                  <div className="text-xs text-gray-500 font-medium">{WEEK_DAYS_HE[day.getDay()]}</div>
+                  <div className={`text-base md:text-lg font-bold ${isToday ? 'text-indigo-600' : 'text-gray-700'}`}>{day.getDate()}</div>
                 </div>
               );
             })}
+          </div>
+
+          <div className="flex-1 overflow-y-auto relative min-h-[400px] md:min-h-[500px]">
+            <div className="flex absolute inset-0 min-h-full min-w-[600px]">
+              <div className="w-14 md:w-16 flex-shrink-0 bg-gray-50 border-l border-gray-200 text-[10px] text-gray-500 font-medium select-none">
+                {timeSlots.map((time, i) => (
+                  <div key={i} className="border-b border-gray-100 flex items-start justify-center pt-0.5" style={{ height: `${100 / timeSlots.length}%` }}>
+                    {formatTime(time)}
+                  </div>
+                ))}
+              </div>
+              {weekDays.map((day, dayIndex) => {
+                const dayEvents = mergeSchedules(rooms, fixedShifts, oneOffBookings, day);
+                const isToday = day.toDateString() === new Date().toDateString();
+                return (
+                  <div
+                    key={dayIndex}
+                    className={`flex-1 min-w-[70px] relative border-l border-gray-200 last:border-l-0 transition-colors ${isToday ? 'bg-indigo-50/30' : 'bg-white'}`}
+                  >
+                    {timeSlots.map((_, i) => (
+                      <div key={i} className="w-full border-b border-gray-100" style={{ height: `${100 / timeSlots.length}%` }}></div>
+                    ))}
+                    <div className="absolute inset-0 cursor-pointer z-0" onClick={() => { onDateSelect(day); onSlotClick(); }} />
+                    {dayEvents.map(event => {
+                      const therapist = getTherapist(event.therapistId);
+                      const room = getRoom(event.roomId);
+                      const isOneOff = event.type === 'one-off';
+                      const isAbsence = event.subType === 'absence';
+                      let bgClasses = therapist?.color || 'bg-gray-100 text-gray-800';
+                      let borderClasses = '';
+                      if (isAbsence) {
+                        bgClasses = 'bg-gray-100 text-gray-500 opacity-90';
+                        borderClasses = 'border-l-2 border-red-400';
+                      } else if (isOneOff) {
+                        borderClasses = 'ring-1 ring-indigo-500 z-20';
+                      }
+                      return (
+                        <div
+                          key={event.id}
+                          className={`absolute inset-x-0.5 rounded-sm p-1 text-[10px] md:text-[11px] border shadow-sm z-10 overflow-hidden transition-all hover:brightness-95 group/item ${bgClasses} ${borderClasses}`}
+                          style={getEventStyle(event, day)}
+                          title={`${therapist?.name} - ${room?.name}\n${formatTime(event.start)} - ${formatTime(event.end)}`}
+                        >
+                          <div className="font-bold truncate leading-tight">
+                            {therapist?.name.split(' ')[0]}
+                          </div>
+                          <div className="opacity-70 truncate leading-tight text-[9px]">
+                            {room?.name.replace('חדר ', '')}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
         <div className="p-2 bg-gray-50 border-t border-gray-200 flex gap-4 text-xs flex-wrap">

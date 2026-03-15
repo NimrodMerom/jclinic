@@ -228,7 +228,7 @@ export const PublicSchedule: React.FC = () => {
           </select>
         </div>
 
-        <div className="h-[650px]">
+        <div className="h-[calc(100vh-280px)] min-h-[400px] max-h-[800px]">
           <Calendar
             currentDate={currentDate}
             viewMode={viewMode}
