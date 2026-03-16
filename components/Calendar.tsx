@@ -145,11 +145,11 @@ export const Calendar: React.FC<CalendarProps> = ({
             ))}
           </div>
 
-          <div className="flex-1 overflow-y-auto relative min-h-[400px] md:min-h-[600px]">
-            <div className={`flex absolute inset-0 min-h-full ${rooms.length > 2 ? 'min-w-[500px]' : ''}`}>
+          <div className="flex-1 overflow-y-auto relative">
+            <div className={`flex ${rooms.length > 2 ? 'min-w-[500px]' : ''}`} style={{ minHeight: `${timeSlots.length * 40}px` }}>
               <div className="w-16 md:w-20 flex-shrink-0 bg-gray-50 border-l border-gray-200 text-xs text-gray-500 font-medium select-none">
                 {timeSlots.map((time, i) => (
-                  <div key={i} className="h-12 border-b border-gray-100 flex items-start justify-center pt-1" style={{ height: `${100 / timeSlots.length}%` }}>
+                  <div key={i} className="border-b border-gray-100 flex items-start justify-center pt-1" style={{ height: '40px' }}>
                     {formatTime(time)}
                   </div>
                 ))}
@@ -157,32 +157,41 @@ export const Calendar: React.FC<CalendarProps> = ({
               {rooms.map((room) => (
                 <div key={room.id} className={`flex-1 relative border-l border-gray-200 last:border-l-0 bg-white group hover:bg-gray-50/50 transition-colors ${rooms.length > 2 ? 'min-w-[120px]' : ''}`}>
                   {timeSlots.map((_, i) => (
-                     <div key={i} className="w-full border-b border-gray-100" style={{ height: `${100 / timeSlots.length}%` }}></div>
+                     <div key={i} className="w-full border-b border-gray-100" style={{ height: '40px' }}></div>
                   ))}
-                  <div className="absolute inset-0 cursor-pointer z-0" onClick={onSlotClick} />
                   {dailyEvents.filter(e => e.roomId === room.id).map(event => {
                       const therapist = getTherapist(event.therapistId);
                       const isOneOff = event.type === 'one-off';
                       const isAbsence = event.subType === 'absence';
-                      let bgClasses = therapist?.color || 'bg-gray-100 text-gray-800';
+                      // Extract only background and border classes from therapist color, use fixed dark text
+                      const colorParts = (therapist?.color || 'bg-gray-100 border-gray-500').split(' ');
+                      const bgBorderClasses = colorParts.filter(c => c.startsWith('bg-') || c.startsWith('border-')).join(' ');
                       let borderClasses = '';
+                      let textClasses = 'text-gray-800';
                       if (isAbsence) {
-                        bgClasses = 'bg-gray-100 text-gray-500 opacity-90';
+                        textClasses = 'text-gray-500 opacity-90';
                         borderClasses = 'border-l-4 border-red-400';
                       } else if (isOneOff) {
                         borderClasses = 'ring-2 ring-indigo-500 ring-offset-1 z-20';
                       }
+                      const totalDayMinutes = (CLOSING_HOUR - OPENING_HOUR) * 60;
+                      const dayStart = new Date(currentDate);
+                      dayStart.setHours(OPENING_HOUR, 0, 0, 0);
+                      const startMins = getDifferenceInMinutes(event.start, dayStart);
+                      const durationMins = getDifferenceInMinutes(event.end, event.start);
+                      const topPx = (startMins / 30) * 40; // 40px per 30 min slot
+                      const heightPx = (durationMins / 30) * 40;
                       return (
                         <div
                           key={event.id}
-                          className={`absolute inset-x-1 rounded-md p-1.5 md:p-2 text-xs md:text-sm border shadow-sm z-10 flex flex-col justify-between overflow-hidden transition-all hover:brightness-95 group/item ${bgClasses} ${borderClasses}`}
-                          style={getEventStyle(event)}
+                          className={`absolute inset-x-1 rounded-md p-1.5 md:p-2 border shadow-sm z-10 flex flex-col justify-between overflow-hidden transition-all hover:brightness-95 group/item ${bgBorderClasses} ${textClasses} ${borderClasses}`}
+                          style={{ top: `${topPx}px`, height: `${heightPx}px` }}
                         >
                           {isAbsence && (
                             <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'linear-gradient(45deg, #000 25%, transparent 25%, transparent 50%, #000 50%, #000 75%, transparent 75%, transparent)', backgroundSize: '10px 10px' }}></div>
                           )}
                           <div className="font-bold flex items-center justify-between relative z-10">
-                            <span className={`truncate text-[11px] md:text-xs ${isAbsence ? 'line-through decoration-red-500 decoration-2' : ''}`}>
+                            <span className={`truncate text-[11px] md:text-sm ${isAbsence ? 'line-through decoration-red-500 decoration-2' : ''}`}>
                               {therapist?.name}
                             </span>
                             <div className="flex items-center gap-1">
@@ -256,11 +265,11 @@ export const Calendar: React.FC<CalendarProps> = ({
             })}
           </div>
 
-          <div className="flex-1 overflow-y-auto relative min-h-[400px] md:min-h-[500px]">
-            <div className="flex absolute inset-0 min-h-full min-w-[600px]">
+          <div className="flex-1 overflow-y-auto relative">
+            <div className="flex min-w-[600px]" style={{ minHeight: `${timeSlots.length * 32}px` }}>
               <div className="w-14 md:w-16 flex-shrink-0 bg-gray-50 border-l border-gray-200 text-[10px] text-gray-500 font-medium select-none">
                 {timeSlots.map((time, i) => (
-                  <div key={i} className="border-b border-gray-100 flex items-start justify-center pt-0.5" style={{ height: `${100 / timeSlots.length}%` }}>
+                  <div key={i} className="border-b border-gray-100 flex items-start justify-center pt-0.5" style={{ height: '32px' }}>
                     {formatTime(time)}
                   </div>
                 ))}
@@ -274,27 +283,35 @@ export const Calendar: React.FC<CalendarProps> = ({
                     className={`flex-1 min-w-[70px] relative border-l border-gray-200 last:border-l-0 transition-colors ${isToday ? 'bg-indigo-50/30' : 'bg-white'}`}
                   >
                     {timeSlots.map((_, i) => (
-                      <div key={i} className="w-full border-b border-gray-100" style={{ height: `${100 / timeSlots.length}%` }}></div>
+                      <div key={i} className="w-full border-b border-gray-100" style={{ height: '32px' }}></div>
                     ))}
-                    <div className="absolute inset-0 cursor-pointer z-0" onClick={() => { onDateSelect(day); onSlotClick(); }} />
                     {dayEvents.map(event => {
                       const therapist = getTherapist(event.therapistId);
                       const room = getRoom(event.roomId);
                       const isOneOff = event.type === 'one-off';
                       const isAbsence = event.subType === 'absence';
-                      let bgClasses = therapist?.color || 'bg-gray-100 text-gray-800';
+                      // Extract only background and border classes, use fixed dark text
+                      const colorParts = (therapist?.color || 'bg-gray-100 border-gray-500').split(' ');
+                      const bgBorderClasses = colorParts.filter(c => c.startsWith('bg-') || c.startsWith('border-')).join(' ');
                       let borderClasses = '';
+                      let textClasses = 'text-gray-800';
                       if (isAbsence) {
-                        bgClasses = 'bg-gray-100 text-gray-500 opacity-90';
+                        textClasses = 'text-gray-500 opacity-90';
                         borderClasses = 'border-l-2 border-red-400';
                       } else if (isOneOff) {
                         borderClasses = 'ring-1 ring-indigo-500 z-20';
                       }
+                      const dayStart = new Date(day);
+                      dayStart.setHours(OPENING_HOUR, 0, 0, 0);
+                      const startMins = getDifferenceInMinutes(event.start, dayStart);
+                      const durationMins = getDifferenceInMinutes(event.end, event.start);
+                      const topPx = (startMins / 30) * 32; // 32px per 30 min slot
+                      const heightPx = (durationMins / 30) * 32;
                       return (
                         <div
                           key={event.id}
-                          className={`absolute inset-x-0.5 rounded-sm p-1 text-[10px] md:text-[11px] border shadow-sm z-10 overflow-hidden transition-all hover:brightness-95 group/item ${bgClasses} ${borderClasses}`}
-                          style={getEventStyle(event, day)}
+                          className={`absolute inset-x-0.5 rounded-sm p-1 text-[10px] md:text-[11px] border shadow-sm z-10 overflow-hidden transition-all hover:brightness-95 group/item ${bgBorderClasses} ${textClasses} ${borderClasses}`}
+                          style={{ top: `${topPx}px`, height: `${heightPx}px` }}
                           title={`${therapist?.name} - ${room?.name}\n${formatTime(event.start)} - ${formatTime(event.end)}`}
                         >
                           <div className="font-bold truncate leading-tight">
