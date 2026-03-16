@@ -102,7 +102,7 @@ const App: React.FC = () => {
 
   const loadData = useCallback(async (silent = false) => {
     if (!isCloudEnabled()) return;
-    
+
     // אם עשינו שינוי לא מזמן, אל תטען נתונים מהשרת כדי שלא נדרוס את מה שכתבנו
     if (silent && Date.now() - syncLockRef.current < 5000) {
       console.log("Sync skipped due to recent local change");
@@ -111,18 +111,26 @@ const App: React.FC = () => {
 
     if (!silent) setIsLoading(true);
     try {
+      // Load all data - now errors will be thrown properly
       const cloudTherapists = await db.getTherapists();
-      if (cloudTherapists.length > 0) setTherapists(cloudTherapists);
-
       const cloudFixed = await db.getFixedShifts();
       const cloudOneOffs = await db.getOneOffBookings();
-      
+
+      // Only update state after ALL loads succeed
+      if (cloudTherapists.length > 0) {
+        setTherapists(cloudTherapists);
+        console.log("Loaded therapists from cloud:", cloudTherapists.length);
+      } else {
+        console.warn("No therapists found in cloud - keeping local data");
+      }
+
       setFixedShifts(cloudFixed);
       setOneOffBookings(cloudOneOffs);
       setSyncWarning(false);
     } catch (e: any) {
       console.error("Cloud load failed:", e);
       if (!silent) setErrorMsg("שגיאת טעינה: " + e.message);
+      setSyncWarning(true);
     } finally {
       if (!silent) setIsLoading(false);
     }

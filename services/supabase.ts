@@ -96,8 +96,12 @@ export const db = {
   async getTherapists(): Promise<Therapist[]> {
     if (!supabase) return [];
     const { data, error } = await supabase.from('therapists').select('*');
-    if (error) return [];
-    return data.map(t => ({
+    if (error) {
+      console.error('Error loading therapists:', error);
+      // Don't silently fail - throw error so we know something is wrong
+      handleSupabaseError(error, 'getTherapists');
+    }
+    return (data || []).map(t => ({
       id: t.id,
       name: t.name,
       color: t.color,
@@ -133,8 +137,11 @@ export const db = {
   async getFixedShifts(): Promise<FixedShift[]> {
     if (!supabase) return [];
     const { data, error } = await supabase.from('fixed_shifts').select('*');
-    if (error) return [];
-    return data.map(s => ({
+    if (error) {
+      console.error('Error loading fixed_shifts:', error);
+      handleSupabaseError(error, 'getFixedShifts');
+    }
+    return (data || []).map(s => ({
       id: s.id,
       therapistId: s.therapist_id,
       roomId: s.room_id,
@@ -166,8 +173,11 @@ export const db = {
   async getOneOffBookings(): Promise<OneOffBooking[]> {
     if (!supabase) return [];
     const { data, error } = await supabase.from('one_off_bookings').select('*');
-    if (error) return [];
-    return data.map(b => ({
+    if (error) {
+      console.error('Error loading one_off_bookings:', error);
+      handleSupabaseError(error, 'getOneOffBookings');
+    }
+    return (data || []).map(b => ({
       id: b.id,
       therapistId: b.therapist_id,
       roomId: b.room_id,
