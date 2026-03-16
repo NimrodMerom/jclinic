@@ -130,6 +130,22 @@ export const db = {
 
   async deleteTherapist(id: string) {
     if (!supabase) return;
+    // First delete all related records to avoid foreign key constraint errors
+    // Delete fixed shifts for this therapist
+    const { error: fixedError } = await supabase
+      .from('fixed_shifts')
+      .delete()
+      .eq('therapist_id', id);
+    if (fixedError) handleSupabaseError(fixedError, 'deleteTherapist (fixed_shifts)');
+
+    // Delete one-off bookings for this therapist
+    const { error: bookingsError } = await supabase
+      .from('one_off_bookings')
+      .delete()
+      .eq('therapist_id', id);
+    if (bookingsError) handleSupabaseError(bookingsError, 'deleteTherapist (one_off_bookings)');
+
+    // Now delete the therapist
     const { error } = await supabase.from('therapists').delete().eq('id', id);
     if (error) handleSupabaseError(error, 'deleteTherapist');
   },
