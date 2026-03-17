@@ -96,8 +96,12 @@ export const db = {
   async getTherapists(): Promise<Therapist[]> {
     if (!supabase) return [];
     const { data, error } = await supabase.from('therapists').select('*');
-    if (error) return [];
-    return data.map(t => ({
+    if (error) {
+      console.error('Error loading therapists:', error);
+      // Don't silently fail - throw error so we know something is wrong
+      handleSupabaseError(error, 'getTherapists');
+    }
+    return (data || []).map(t => ({
       id: t.id,
       name: t.name,
       color: t.color,
@@ -126,6 +130,22 @@ export const db = {
 
   async deleteTherapist(id: string) {
     if (!supabase) return;
+    // First delete all related records to avoid foreign key constraint errors
+    // Delete fixed shifts for this therapist
+    const { error: fixedError } = await supabase
+      .from('fixed_shifts')
+      .delete()
+      .eq('therapist_id', id);
+    if (fixedError) handleSupabaseError(fixedError, 'deleteTherapist (fixed_shifts)');
+
+    // Delete one-off bookings for this therapist
+    const { error: bookingsError } = await supabase
+      .from('one_off_bookings')
+      .delete()
+      .eq('therapist_id', id);
+    if (bookingsError) handleSupabaseError(bookingsError, 'deleteTherapist (one_off_bookings)');
+
+    // Now delete the therapist
     const { error } = await supabase.from('therapists').delete().eq('id', id);
     if (error) handleSupabaseError(error, 'deleteTherapist');
   },
@@ -133,8 +153,11 @@ export const db = {
   async getFixedShifts(): Promise<FixedShift[]> {
     if (!supabase) return [];
     const { data, error } = await supabase.from('fixed_shifts').select('*');
-    if (error) return [];
-    return data.map(s => ({
+    if (error) {
+      console.error('Error loading fixed_shifts:', error);
+      handleSupabaseError(error, 'getFixedShifts');
+    }
+    return (data || []).map(s => ({
       id: s.id,
       therapistId: s.therapist_id,
       roomId: s.room_id,
@@ -166,8 +189,11 @@ export const db = {
   async getOneOffBookings(): Promise<OneOffBooking[]> {
     if (!supabase) return [];
     const { data, error } = await supabase.from('one_off_bookings').select('*');
-    if (error) return [];
-    return data.map(b => ({
+    if (error) {
+      console.error('Error loading one_off_bookings:', error);
+      handleSupabaseError(error, 'getOneOffBookings');
+    }
+    return (data || []).map(b => ({
       id: b.id,
       therapistId: b.therapist_id,
       roomId: b.room_id,
