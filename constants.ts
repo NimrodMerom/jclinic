@@ -1,7 +1,7 @@
 
 import { Room, Therapist } from './types';
 
-export const OPENING_HOUR = 8; // 08:00
+export const OPENING_HOUR = 7; // 07:00 - earlier start for early shifts
 export const CLOSING_HOUR = 20; // 20:00
 export const SLOT_DURATION = 30; // minutes
 
