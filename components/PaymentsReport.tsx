@@ -34,6 +34,8 @@ export const PaymentsReport: React.FC<PaymentsReportProps> = ({
     const year = reportDate.getFullYear();
     const month = reportDate.getMonth();
     
+    const PARKING_RATE = 60;
+
     const stats: Record<string, {
       name: string;
       paymentType: PaymentType;
@@ -42,6 +44,7 @@ export const PaymentsReport: React.FC<PaymentsReportProps> = ({
       absenceHours: number;
       fixedShiftCount: number;
       oneOffShiftCount: number;
+      parkingCount: number;
       totalCost: number;
       color: string;
     }> = {};
@@ -55,6 +58,7 @@ export const PaymentsReport: React.FC<PaymentsReportProps> = ({
         absenceHours: 0,
         fixedShiftCount: 0,
         oneOffShiftCount: 0,
+        parkingCount: 0,
         totalCost: t.paymentType === 'monthly' ? (t.fixedShiftRate || 0) : 0,
         color: t.color
       };
@@ -78,7 +82,7 @@ export const PaymentsReport: React.FC<PaymentsReportProps> = ({
         if (event.type === 'fixed') {
           therapist.fixedHours += durationHours;
           therapist.fixedShiftCount += 1;
-          
+
           if (therapist.paymentType === 'hourly') {
             therapist.totalCost += durationHours * (therapistConfig.fixedShiftRate || 0);
           } else if (therapist.paymentType === 'perShift') {
@@ -89,7 +93,6 @@ export const PaymentsReport: React.FC<PaymentsReportProps> = ({
           // One-Off Handling
           if (event.subType === 'absence') {
             therapist.absenceHours += durationHours;
-            // Absences are charged according to One-Off rate if hourly, or per shift
             if (therapist.paymentType === 'hourly') {
               therapist.totalCost += durationHours * (therapistConfig.oneOffRate || 0);
             } else if (therapist.paymentType === 'perShift') {
@@ -104,6 +107,12 @@ export const PaymentsReport: React.FC<PaymentsReportProps> = ({
               therapist.totalCost += (therapistConfig.oneOffRate || 0);
             }
           }
+        }
+
+        // Add parking cost for any event with parking (not absences)
+        if (event.hasParking && event.subType !== 'absence') {
+          therapist.parkingCount += 1;
+          therapist.totalCost += PARKING_RATE;
         }
       });
     }
@@ -178,6 +187,7 @@ export const PaymentsReport: React.FC<PaymentsReportProps> = ({
                   <th className="p-4">שעות קבועות</th>
                   <th className="p-4">שעות חריגות</th>
                   <th className="p-4">היעדרויות</th>
+                  <th className="p-4">חניות</th>
                   <th className="p-4">סה"כ יחידות חיוב</th>
                   <th className="p-4 text-left">סה"כ לתשלום</th>
                 </tr>
@@ -209,6 +219,14 @@ export const PaymentsReport: React.FC<PaymentsReportProps> = ({
                     </td>
                     <td className="p-4 text-red-400 font-bold">
                       {row.absenceHours > 0 ? `${row.absenceHours.toFixed(1)} ש'` : '-'}
+                    </td>
+                    <td className="p-4 font-medium text-indigo-600">
+                      {row.parkingCount > 0 ? (
+                        <span className="flex items-center gap-1">
+                          {row.parkingCount}
+                          <span className="text-[10px] text-indigo-400 font-bold">×60₪</span>
+                        </span>
+                      ) : '-'}
                     </td>
                     <td className="p-4 font-bold text-gray-500">
                       {row.paymentType === 'hourly' 

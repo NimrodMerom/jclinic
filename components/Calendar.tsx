@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { OPENING_HOUR, CLOSING_HOUR, SLOT_DURATION, WEEK_DAYS_HE } from '../constants';
-import { FixedShift, OneOffBooking, ParkingBooking, RenderableEvent, Room, Therapist } from '../types';
+import { FixedShift, OneOffBooking, RenderableEvent, Room, Therapist } from '../types';
 import { mergeSchedules } from '../utils/schedulerLogic';
 import { Clock, Calendar as CalendarIcon, UserX, Trash2, X, ExternalLink, MapPin, Car } from 'lucide-react';
 
@@ -12,7 +12,6 @@ interface CalendarProps {
   onDateSelect: (date: Date) => void;
   fixedShifts: FixedShift[];
   oneOffBookings: OneOffBooking[];
-  parkingBookings?: ParkingBooking[]; // bookings for today
   onSlotClick: () => void;
   rooms: Room[];
   therapists: Therapist[];
@@ -68,7 +67,7 @@ const getWeekDays = (baseDate: Date): Date[] => {
 };
 
 export const Calendar: React.FC<CalendarProps> = ({
-  currentDate, viewMode, onViewChange, onDateSelect, fixedShifts, oneOffBookings, parkingBookings = [], onSlotClick, rooms, therapists, onDeleteEvent
+  currentDate, viewMode, onViewChange, onDateSelect, fixedShifts, oneOffBookings, onSlotClick, rooms, therapists, onDeleteEvent
 }) => {
   const [selectedDaySummary, setSelectedDaySummary] = useState<Date | null>(null);
   
@@ -196,7 +195,7 @@ export const Calendar: React.FC<CalendarProps> = ({
                               {therapist?.name}
                             </span>
                             <div className="flex items-center gap-1">
-                              {parkingBookings.some(p => p.therapistId === event.therapistId) && !isAbsence && (
+                              {event.hasParking && !isAbsence && (
                                 <Car size={11} className="text-indigo-500 flex-shrink-0" title="חניה" />
                               )}
                               {isAbsence ? (

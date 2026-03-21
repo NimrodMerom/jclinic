@@ -1,6 +1,6 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Therapist, FixedShift, OneOffBooking, ParkingBooking, PaymentType } from '../types';
+import { Therapist, FixedShift, OneOffBooking, PaymentType } from '../types';
 
 let supabase: SupabaseClient | null = null;
 
@@ -65,7 +65,6 @@ export const subscribeToChanges = (onUpdate: () => void) => {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'therapists' }, onUpdate)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'fixed_shifts' }, onUpdate)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'one_off_bookings' }, onUpdate)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'parking_bookings' }, onUpdate)
     .subscribe();
 
   return () => {
@@ -82,14 +81,14 @@ const handleSupabaseError = (error: any, context: string) => {
   console.error(`Supabase Error during ${context}:`, error);
   const code = error.code || 'UNKNOWN';
   const message = error.message || 'שגיאה לא ידועה';
-  
+
   if (code === '42501') {
     throw new Error(`שגיאת הרשאות (42501): בסיס הנתונים נעול לכתיבה. חייבים להריץ את פקודות ה-GRANT מה-SQL שבתחתית הדף.`);
   }
   if (code === '23P01') {
     throw new Error(`שגיאת כפילות (23P01): החדר כבר תפוס בשעה הזו.`);
   }
-  
+
   throw new Error(`${message} (קוד: ${code})`);
 };
 
@@ -99,7 +98,6 @@ export const db = {
     const { data, error } = await supabase.from('therapists').select('*');
     if (error) {
       console.error('Error loading therapists:', error);
-      // Don't silently fail - throw error so we know something is wrong
       handleSupabaseError(error, 'getTherapists');
     }
     return (data || []).map(t => ({
@@ -132,21 +130,18 @@ export const db = {
   async deleteTherapist(id: string) {
     if (!supabase) return;
     // First delete all related records to avoid foreign key constraint errors
-    // Delete fixed shifts for this therapist
     const { error: fixedError } = await supabase
       .from('fixed_shifts')
       .delete()
       .eq('therapist_id', id);
     if (fixedError) handleSupabaseError(fixedError, 'deleteTherapist (fixed_shifts)');
 
-    // Delete one-off bookings for this therapist
     const { error: bookingsError } = await supabase
       .from('one_off_bookings')
       .delete()
       .eq('therapist_id', id);
     if (bookingsError) handleSupabaseError(bookingsError, 'deleteTherapist (one_off_bookings)');
 
-    // Now delete the therapist
     const { error } = await supabase.from('therapists').delete().eq('id', id);
     if (error) handleSupabaseError(error, 'deleteTherapist');
   },
@@ -164,7 +159,8 @@ export const db = {
       roomId: s.room_id,
       dayOfWeek: s.day_of_week as any,
       startTime: s.start_time.substring(0, 5),
-      endTime: s.end_time.substring(0, 5)
+      endTime: s.end_time.substring(0, 5),
+      hasParking: s.has_parking || false
     }));
   },
 
@@ -176,7 +172,8 @@ export const db = {
       room_id: s.roomId,
       day_of_week: s.dayOfWeek,
       start_time: formatTimeForDb(s.startTime),
-      end_time: formatTimeForDb(s.endTime)
+      end_time: formatTimeForDb(s.endTime),
+      has_parking: s.hasParking || false
     });
     if (error) handleSupabaseError(error, 'saveFixedShift');
   },
@@ -201,7 +198,8 @@ export const db = {
       date: b.date,
       startTime: b.start_time.substring(0, 5),
       endTime: b.end_time.substring(0, 5),
-      type: b.type as any
+      type: b.type as any,
+      hasParking: b.has_parking || false
     }));
   },
 
@@ -214,7 +212,8 @@ export const db = {
       date: b.date,
       start_time: formatTimeForDb(b.startTime),
       end_time: formatTimeForDb(b.endTime),
-      type: b.type || 'booking'
+      type: b.type || 'booking',
+      has_parking: b.hasParking || false
     });
     if (error) handleSupabaseError(error, 'saveOneOffBooking');
   },
@@ -223,37 +222,5 @@ export const db = {
     if (!supabase) return;
     const { error } = await supabase.from('one_off_bookings').delete().eq('id', id);
     if (error) handleSupabaseError(error, 'deleteOneOffBooking');
-  },
-
-  async getParkingBookings(): Promise<ParkingBooking[]> {
-    if (!supabase) return [];
-    const { data, error } = await supabase.from('parking_bookings').select('*');
-    if (error) {
-      console.error('Error loading parking_bookings:', error);
-      handleSupabaseError(error, 'getParkingBookings');
-    }
-    return (data || []).map(p => ({
-      id: p.id,
-      therapistId: p.therapist_id,
-      date: p.date,
-      spotNumber: p.spot_number as 1 | 2
-    }));
-  },
-
-  async saveParkingBooking(p: ParkingBooking) {
-    if (!supabase) return;
-    const { error } = await supabase.from('parking_bookings').upsert({
-      id: p.id,
-      therapist_id: p.therapistId,
-      date: p.date,
-      spot_number: p.spotNumber
-    });
-    if (error) handleSupabaseError(error, 'saveParkingBooking');
-  },
-
-  async deleteParkingBooking(id: string) {
-    if (!supabase) return;
-    const { error } = await supabase.from('parking_bookings').delete().eq('id', id);
-    if (error) handleSupabaseError(error, 'deleteParkingBooking');
   }
 };

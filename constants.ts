@@ -28,12 +28,11 @@ export const INITIAL_THERAPISTS: Therapist[] = [
 
 export const WEEK_DAYS_HE = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
-export const SQL_SCHEMA_DOC = `-- === CLINICFLOW SQL SCHEMA v2.4 (PARKING) ===
+export const SQL_SCHEMA_DOC = `-- === CLINICFLOW SQL SCHEMA v2.5 (PARKING PER SESSION) ===
 -- 1. הפעלת תוסף למניעת כפילויות בחדרים
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
 -- 2. ניקוי טבלאות קיימות
-DROP TABLE IF EXISTS parking_bookings CASCADE;
 DROP TABLE IF EXISTS one_off_bookings CASCADE;
 DROP TABLE IF EXISTS fixed_shifts CASCADE;
 DROP TABLE IF EXISTS therapists CASCADE;
@@ -57,11 +56,12 @@ CREATE TABLE fixed_shifts (
     day_of_week INT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
+    has_parking BOOLEAN DEFAULT false,
     EXCLUDE USING gist (
-        room_id WITH =, 
-        day_of_week WITH =, 
+        room_id WITH =,
+        day_of_week WITH =,
         tsrange(
-            ('2000-01-01'::date + start_time), 
+            ('2000-01-01'::date + start_time),
             ('2000-01-01'::date + end_time)
         ) WITH &&
     )
@@ -75,21 +75,14 @@ CREATE TABLE one_off_bookings (
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
     type TEXT DEFAULT 'booking',
+    has_parking BOOLEAN DEFAULT false,
     EXCLUDE USING gist (
-        room_id WITH =, 
+        room_id WITH =,
         tsrange(
-            (date + start_time), 
+            (date + start_time),
             (date + end_time)
         ) WITH &&
     )
-);
-
-CREATE TABLE parking_bookings (
-    id TEXT PRIMARY KEY,
-    therapist_id TEXT REFERENCES therapists(id) ON DELETE CASCADE,
-    date DATE NOT NULL,
-    spot_number INT NOT NULL CHECK (spot_number IN (1, 2)),
-    UNIQUE (date, spot_number)
 );
 
 -- 4. הרשאות כתיבה (חובה להריץ את זה!)
@@ -97,13 +90,11 @@ CREATE TABLE parking_bookings (
 ALTER TABLE therapists DISABLE ROW LEVEL SECURITY;
 ALTER TABLE fixed_shifts DISABLE ROW LEVEL SECURITY;
 ALTER TABLE one_off_bookings DISABLE ROW LEVEL SECURITY;
-ALTER TABLE parking_bookings DISABLE ROW LEVEL SECURITY;
 
 -- מתן הרשאות מלאות לאפליקציה
 GRANT ALL ON TABLE therapists TO anon, authenticated, postgres, service_role;
 GRANT ALL ON TABLE fixed_shifts TO anon, authenticated, postgres, service_role;
 GRANT ALL ON TABLE one_off_bookings TO anon, authenticated, postgres, service_role;
-GRANT ALL ON TABLE parking_bookings TO anon, authenticated, postgres, service_role;
 
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated;
@@ -112,7 +103,10 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authentic
 ALTER TABLE therapists REPLICA IDENTITY FULL;
 ALTER TABLE fixed_shifts REPLICA IDENTITY FULL;
 ALTER TABLE one_off_bookings REPLICA IDENTITY FULL;
-ALTER TABLE parking_bookings REPLICA IDENTITY FULL;
+
+-- אם הטבלאות כבר קיימות - הוסף את עמודת החניה:
+-- ALTER TABLE fixed_shifts ADD COLUMN IF NOT EXISTS has_parking BOOLEAN DEFAULT false;
+-- ALTER TABLE one_off_bookings ADD COLUMN IF NOT EXISTS has_parking BOOLEAN DEFAULT false;
 
 BEGIN;
   DROP PUBLICATION IF EXISTS supabase_realtime;
