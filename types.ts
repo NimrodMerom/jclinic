@@ -56,3 +56,10 @@ export interface TimeSlot {
   time: string;
   minutesFromStart: number;
 }
+
+export interface ParkingBooking {
+  id: string;
+  therapistId: string;
+  date: string; // "YYYY-MM-DD"
+  spotNumber: 1 | 2;
+}

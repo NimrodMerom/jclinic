@@ -7,9 +7,10 @@ import { Assistant } from './components/Assistant';
 import { TherapistManager } from './components/TherapistManager';
 import { PaymentsReport } from './components/PaymentsReport';
 import { CloudSetup } from './components/CloudSetup';
-import { FixedShift, OneOffBooking, Therapist } from './types';
+import { FixedShift, OneOffBooking, Therapist, ParkingBooking } from './types';
 import { getInitialFixedShifts, getInitialOneOffs, getNextSunday } from './services/mockDb';
 import { db, isCloudEnabled, initSupabase, subscribeToChanges } from './services/supabase';
+import { ParkingPanel } from './components/ParkingPanel';
 import {
   ChevronRight, ChevronLeft, Calendar as CalendarIcon, Info, Filter,
   Settings, LayoutGrid, LayoutList, Calculator, CalendarClock, Cloud, CloudOff, RefreshCw, AlertTriangle, WifiOff, Share2, Check, Columns
@@ -68,6 +69,10 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('clinic_therapists');
     return saved ? JSON.parse(saved) : INITIAL_THERAPISTS;
   });
+  const [parkingBookings, setParkingBookings] = useState<ParkingBooking[]>(() => {
+    const saved = localStorage.getItem('clinic_parking_bookings');
+    return saved ? JSON.parse(saved) : [];
+  });
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalInitialData, setModalInitialData] = useState<{roomId?: string, time?: string}>({});
@@ -100,6 +105,10 @@ const App: React.FC = () => {
     localStorage.setItem('clinic_one_off_bookings', JSON.stringify(oneOffBookings));
   }, [oneOffBookings]);
 
+  useEffect(() => {
+    localStorage.setItem('clinic_parking_bookings', JSON.stringify(parkingBookings));
+  }, [parkingBookings]);
+
   const loadData = useCallback(async (silent = false) => {
     if (!isCloudEnabled()) return;
 
@@ -115,6 +124,7 @@ const App: React.FC = () => {
       const cloudTherapists = await db.getTherapists();
       const cloudFixed = await db.getFixedShifts();
       const cloudOneOffs = await db.getOneOffBookings();
+      const cloudParking = await db.getParkingBookings();
 
       // Only update state after ALL loads succeed
       if (cloudTherapists.length > 0) {
@@ -126,6 +136,7 @@ const App: React.FC = () => {
 
       setFixedShifts(cloudFixed);
       setOneOffBookings(cloudOneOffs);
+      setParkingBookings(cloudParking);
       setSyncWarning(false);
     } catch (e: any) {
       console.error("Cloud load failed:", e);
@@ -227,6 +238,32 @@ const App: React.FC = () => {
     }
   };
 
+  const handleAddParking = async (booking: ParkingBooking) => {
+    syncLockRef.current = Date.now();
+    setParkingBookings(prev => {
+      // Replace if same spot+date already exists
+      const filtered = prev.filter(p => !(p.date === booking.date && p.spotNumber === booking.spotNumber));
+      return [...filtered, booking];
+    });
+    if (isCloudEnabled()) {
+      try { await db.saveParkingBooking(booking); } catch (e: any) {
+        setErrorMsg(e.message);
+        setSyncWarning(true);
+      }
+    }
+  };
+
+  const handleDeleteParking = async (id: string) => {
+    syncLockRef.current = Date.now();
+    setParkingBookings(prev => prev.filter(p => p.id !== id));
+    if (isCloudEnabled()) {
+      try { await db.deleteParkingBooking(id); } catch (e: any) {
+        setErrorMsg(e.message);
+        setSyncWarning(true);
+      }
+    }
+  };
+
   const handleSlotClick = (roomId?: string, time?: string) => {
     setModalInitialData({ roomId, time });
     setIsModalOpen(true);
@@ -271,6 +308,16 @@ const App: React.FC = () => {
       setTimeout(() => setLinkCopied(false), 2000);
     }
   };
+
+  // Therapists scheduled today (for parking assignment suggestions)
+  const todayIso = formatIsoDate(currentDate);
+  const todayDayOfWeek = currentDate.getDay();
+  const scheduledTherapistIds = new Set<string>([
+    ...fixedShifts.filter(s => s.dayOfWeek === todayDayOfWeek).map(s => s.therapistId),
+    ...oneOffBookings.filter(b => b.date === todayIso && b.type !== 'absence').map(b => b.therapistId),
+  ]);
+  const scheduledTherapists = therapists.filter(t => scheduledTherapistIds.has(t.id));
+  const todayParkingBookings = parkingBookings.filter(p => p.date === todayIso);
 
   const visibleRooms = selectedRoomId === 'all' ? ROOMS : ROOMS.filter(r => r.id === selectedRoomId);
   const visibleFixedShifts = selectedTherapistId === 'all' ? fixedShifts : fixedShifts.filter(fs => fs.therapistId === selectedTherapistId);
@@ -404,13 +451,24 @@ const App: React.FC = () => {
         </div>
 
         <div className="h-[650px]">
-          <Calendar 
+          <Calendar
             currentDate={currentDate} viewMode={viewMode} onViewChange={setViewMode} onDateSelect={setCurrentDate}
             fixedShifts={visibleFixedShifts} oneOffBookings={visibleOneOffs} rooms={visibleRooms} therapists={therapists}
+            parkingBookings={todayParkingBookings}
             onSlotClick={handleSlotClick}
             onDeleteEvent={(id, type) => type === 'fixed' ? handleDeleteFixed(id) : handleDeleteOneOff(id)}
           />
         </div>
+        {viewMode === 'day' && (
+          <ParkingPanel
+            date={todayIso}
+            parkingBookings={todayParkingBookings}
+            scheduledTherapists={scheduledTherapists}
+            allTherapists={therapists}
+            onAddParking={handleAddParking}
+            onDeleteParking={handleDeleteParking}
+          />
+        )}
         <SchemaDocs />
       </main>
 

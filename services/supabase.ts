@@ -1,6 +1,6 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Therapist, FixedShift, OneOffBooking, PaymentType } from '../types';
+import { Therapist, FixedShift, OneOffBooking, ParkingBooking, PaymentType } from '../types';
 
 let supabase: SupabaseClient | null = null;
 
@@ -65,6 +65,7 @@ export const subscribeToChanges = (onUpdate: () => void) => {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'therapists' }, onUpdate)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'fixed_shifts' }, onUpdate)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'one_off_bookings' }, onUpdate)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'parking_bookings' }, onUpdate)
     .subscribe();
 
   return () => {
@@ -222,5 +223,37 @@ export const db = {
     if (!supabase) return;
     const { error } = await supabase.from('one_off_bookings').delete().eq('id', id);
     if (error) handleSupabaseError(error, 'deleteOneOffBooking');
+  },
+
+  async getParkingBookings(): Promise<ParkingBooking[]> {
+    if (!supabase) return [];
+    const { data, error } = await supabase.from('parking_bookings').select('*');
+    if (error) {
+      console.error('Error loading parking_bookings:', error);
+      handleSupabaseError(error, 'getParkingBookings');
+    }
+    return (data || []).map(p => ({
+      id: p.id,
+      therapistId: p.therapist_id,
+      date: p.date,
+      spotNumber: p.spot_number as 1 | 2
+    }));
+  },
+
+  async saveParkingBooking(p: ParkingBooking) {
+    if (!supabase) return;
+    const { error } = await supabase.from('parking_bookings').upsert({
+      id: p.id,
+      therapist_id: p.therapistId,
+      date: p.date,
+      spot_number: p.spotNumber
+    });
+    if (error) handleSupabaseError(error, 'saveParkingBooking');
+  },
+
+  async deleteParkingBooking(id: string) {
+    if (!supabase) return;
+    const { error } = await supabase.from('parking_bookings').delete().eq('id', id);
+    if (error) handleSupabaseError(error, 'deleteParkingBooking');
   }
 };
