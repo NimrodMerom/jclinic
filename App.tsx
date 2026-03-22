@@ -10,6 +10,7 @@ import { CloudSetup } from './components/CloudSetup';
 import { FixedShift, OneOffBooking, Therapist } from './types';
 import { getInitialFixedShifts, getInitialOneOffs, getNextSunday } from './services/mockDb';
 import { db, isCloudEnabled, initSupabase, subscribeToChanges } from './services/supabase';
+import { ParkingPanel } from './components/ParkingPanel';
 import {
   ChevronRight, ChevronLeft, Calendar as CalendarIcon, Info, Filter,
   Settings, LayoutGrid, LayoutList, Calculator, CalendarClock, Cloud, CloudOff, RefreshCw, AlertTriangle, WifiOff, Share2, Check, Columns
@@ -99,6 +100,7 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('clinic_one_off_bookings', JSON.stringify(oneOffBookings));
   }, [oneOffBookings]);
+
 
   const loadData = useCallback(async (silent = false) => {
     if (!isCloudEnabled()) return;
@@ -404,13 +406,22 @@ const App: React.FC = () => {
         </div>
 
         <div className="h-[650px]">
-          <Calendar 
+          <Calendar
             currentDate={currentDate} viewMode={viewMode} onViewChange={setViewMode} onDateSelect={setCurrentDate}
             fixedShifts={visibleFixedShifts} oneOffBookings={visibleOneOffs} rooms={visibleRooms} therapists={therapists}
             onSlotClick={handleSlotClick}
             onDeleteEvent={(id, type) => type === 'fixed' ? handleDeleteFixed(id) : handleDeleteOneOff(id)}
           />
         </div>
+        {viewMode === 'day' && (
+          <ParkingPanel
+            currentDate={currentDate}
+            fixedShifts={visibleFixedShifts}
+            oneOffBookings={visibleOneOffs}
+            therapists={therapists}
+            rooms={visibleRooms}
+          />
+        )}
         <SchemaDocs />
       </main>
 

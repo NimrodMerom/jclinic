@@ -81,14 +81,14 @@ const handleSupabaseError = (error: any, context: string) => {
   console.error(`Supabase Error during ${context}:`, error);
   const code = error.code || 'UNKNOWN';
   const message = error.message || 'שגיאה לא ידועה';
-  
+
   if (code === '42501') {
     throw new Error(`שגיאת הרשאות (42501): בסיס הנתונים נעול לכתיבה. חייבים להריץ את פקודות ה-GRANT מה-SQL שבתחתית הדף.`);
   }
   if (code === '23P01') {
     throw new Error(`שגיאת כפילות (23P01): החדר כבר תפוס בשעה הזו.`);
   }
-  
+
   throw new Error(`${message} (קוד: ${code})`);
 };
 
@@ -98,7 +98,6 @@ export const db = {
     const { data, error } = await supabase.from('therapists').select('*');
     if (error) {
       console.error('Error loading therapists:', error);
-      // Don't silently fail - throw error so we know something is wrong
       handleSupabaseError(error, 'getTherapists');
     }
     return (data || []).map(t => ({
@@ -131,21 +130,18 @@ export const db = {
   async deleteTherapist(id: string) {
     if (!supabase) return;
     // First delete all related records to avoid foreign key constraint errors
-    // Delete fixed shifts for this therapist
     const { error: fixedError } = await supabase
       .from('fixed_shifts')
       .delete()
       .eq('therapist_id', id);
     if (fixedError) handleSupabaseError(fixedError, 'deleteTherapist (fixed_shifts)');
 
-    // Delete one-off bookings for this therapist
     const { error: bookingsError } = await supabase
       .from('one_off_bookings')
       .delete()
       .eq('therapist_id', id);
     if (bookingsError) handleSupabaseError(bookingsError, 'deleteTherapist (one_off_bookings)');
 
-    // Now delete the therapist
     const { error } = await supabase.from('therapists').delete().eq('id', id);
     if (error) handleSupabaseError(error, 'deleteTherapist');
   },
@@ -163,7 +159,8 @@ export const db = {
       roomId: s.room_id,
       dayOfWeek: s.day_of_week as any,
       startTime: s.start_time.substring(0, 5),
-      endTime: s.end_time.substring(0, 5)
+      endTime: s.end_time.substring(0, 5),
+      hasParking: s.has_parking || false
     }));
   },
 
@@ -175,7 +172,8 @@ export const db = {
       room_id: s.roomId,
       day_of_week: s.dayOfWeek,
       start_time: formatTimeForDb(s.startTime),
-      end_time: formatTimeForDb(s.endTime)
+      end_time: formatTimeForDb(s.endTime),
+      has_parking: s.hasParking || false
     });
     if (error) handleSupabaseError(error, 'saveFixedShift');
   },
@@ -200,7 +198,8 @@ export const db = {
       date: b.date,
       startTime: b.start_time.substring(0, 5),
       endTime: b.end_time.substring(0, 5),
-      type: b.type as any
+      type: b.type as any,
+      hasParking: b.has_parking || false
     }));
   },
 
@@ -213,7 +212,8 @@ export const db = {
       date: b.date,
       start_time: formatTimeForDb(b.startTime),
       end_time: formatTimeForDb(b.endTime),
-      type: b.type || 'booking'
+      type: b.type || 'booking',
+      has_parking: b.hasParking || false
     });
     if (error) handleSupabaseError(error, 'saveOneOffBooking');
   },

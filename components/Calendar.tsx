@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { OPENING_HOUR, CLOSING_HOUR, SLOT_DURATION, WEEK_DAYS_HE } from '../constants';
 import { FixedShift, OneOffBooking, RenderableEvent, Room, Therapist } from '../types';
 import { mergeSchedules } from '../utils/schedulerLogic';
-import { Clock, Calendar as CalendarIcon, UserX, Trash2, X, ExternalLink, MapPin } from 'lucide-react';
+import { Clock, Calendar as CalendarIcon, UserX, Trash2, X, ExternalLink, MapPin, Car } from 'lucide-react';
 
 interface CalendarProps {
   currentDate: Date;
@@ -66,7 +66,7 @@ const getWeekDays = (baseDate: Date): Date[] => {
     return days;
 };
 
-export const Calendar: React.FC<CalendarProps> = ({ 
+export const Calendar: React.FC<CalendarProps> = ({
   currentDate, viewMode, onViewChange, onDateSelect, fixedShifts, oneOffBookings, onSlotClick, rooms, therapists, onDeleteEvent
 }) => {
   const [selectedDaySummary, setSelectedDaySummary] = useState<Date | null>(null);
@@ -195,6 +195,9 @@ export const Calendar: React.FC<CalendarProps> = ({
                               {therapist?.name}
                             </span>
                             <div className="flex items-center gap-1">
+                              {event.hasParking && !isAbsence && (
+                                <Car size={11} className="text-indigo-500 flex-shrink-0" title="חניה" />
+                              )}
                               {isAbsence ? (
                                  <UserX size={14} className="text-red-500 flex-shrink-0" />
                               ) : isOneOff && (

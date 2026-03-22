@@ -27,6 +27,7 @@ export interface FixedShift {
   dayOfWeek: DayOfWeek;
   startTime: string; // "HH:MM"
   endTime: string;   // "HH:MM"
+  hasParking?: boolean;
 }
 
 export interface OneOffBooking {
@@ -37,6 +38,7 @@ export interface OneOffBooking {
   startTime: string; // "HH:MM"
   endTime: string;   // "HH:MM"
   type?: 'booking' | 'absence'; // Default is 'booking'
+  hasParking?: boolean;
 }
 
 export interface RenderableEvent {
@@ -50,6 +52,7 @@ export interface RenderableEvent {
   subType?: 'booking' | 'absence';
   isOverridden?: boolean;
   originalRefId: string;
+  hasParking?: boolean;
 }
 
 export interface TimeSlot {

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { ROOMS } from '../constants';
 import { FixedShift, OneOffBooking, Therapist } from '../types';
-import { X, UserX, CalendarCheck, Check } from 'lucide-react';
+import { X, UserX, CalendarCheck, Check, Car } from 'lucide-react';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -15,8 +15,8 @@ interface BookingModalProps {
   therapists: Therapist[];
 }
 
-export const BookingModal: React.FC<BookingModalProps> = ({ 
-  isOpen, onClose, onAddFixed, onAddOneOff, initialDate, initialTime, initialRoomId, therapists 
+export const BookingModal: React.FC<BookingModalProps> = ({
+  isOpen, onClose, onAddFixed, onAddOneOff, initialDate, initialTime, initialRoomId, therapists
 }) => {
   const [bookingType, setBookingType] = useState<'fixed' | 'one-off'>('one-off');
   const [oneOffSubtype, setOneOffSubtype] = useState<'booking' | 'absence'>('booking');
@@ -26,12 +26,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
   const [dayOfWeek, setDayOfWeek] = useState<number>(0);
+  const [hasParking, setHasParking] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
   // Sync internal state when modal opens
   useEffect(() => {
     if (isOpen) {
       setDate(initialDate);
+      setHasParking(false);
       if (initialTime) {
         setStartTime(initialTime);
         const [h, m] = initialTime.split(':').map(Number);
@@ -41,13 +43,13 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         setStartTime('09:00');
         setEndTime('10:00');
       }
-      
+
       if (initialRoomId) setRoomId(initialRoomId);
-      
+
       if (therapists.length > 0) {
         setTherapistId(therapists[0].id);
       }
-      
+
       const dateObj = new Date(initialDate);
       if (!isNaN(dateObj.getTime())) {
         setDayOfWeek(dateObj.getDay());
@@ -57,12 +59,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   if (!isOpen) return null;
 
+  const isAbsence = bookingType === 'one-off' && oneOffSubtype === 'absence';
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!therapistId) return;
 
     const id = Math.random().toString(36).substr(2, 9);
-    
+
     if (bookingType === 'fixed') {
       onAddFixed({
         id,
@@ -70,7 +74,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         roomId,
         dayOfWeek: dayOfWeek as any,
         startTime,
-        endTime
+        endTime,
+        hasParking
       });
     } else {
       onAddOneOff({
@@ -80,10 +85,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         date,
         startTime,
         endTime,
-        type: oneOffSubtype
+        type: oneOffSubtype,
+        hasParking: isAbsence ? false : hasParking
       });
     }
-    
+
     setShowSuccess(true);
     setTimeout(() => {
       setShowSuccess(false);
@@ -149,7 +155,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">מטפל/ת</label>
-              <select 
+              <select
                 value={therapistId}
                 onChange={(e) => setTherapistId(e.target.value)}
                 className="w-full rounded-md border-gray-300 border p-2 focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
@@ -165,7 +171,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">חדר</label>
-                <select 
+                <select
                   value={roomId}
                   onChange={(e) => setRoomId(e.target.value)}
                   className="w-full rounded-md border-gray-300 border p-2 focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
@@ -175,7 +181,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   ))}
                 </select>
               </div>
-              
+
               {bookingType === 'one-off' ? (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">תאריך</label>
@@ -207,14 +213,44 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               </div>
             </div>
 
+            {/* Parking checkbox - not shown for absences */}
+            {!isAbsence && (
+              <label className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                hasParking
+                  ? 'border-indigo-400 bg-indigo-50'
+                  : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={hasParking}
+                  onChange={(e) => setHasParking(e.target.checked)}
+                  className="hidden"
+                />
+                <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 transition-all ${
+                  hasParking ? 'bg-indigo-600' : 'bg-white border-2 border-gray-300'
+                }`}>
+                  {hasParking && <Check size={13} className="text-white" strokeWidth={3} />}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Car size={16} className={hasParking ? 'text-indigo-600' : 'text-gray-400'} />
+                  <span className={`text-sm font-medium ${hasParking ? 'text-indigo-800' : 'text-gray-600'}`}>
+                    שוכר חניה
+                  </span>
+                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${hasParking ? 'bg-indigo-200 text-indigo-700' : 'bg-gray-200 text-gray-500'}`}>
+                    +60 ₪
+                  </span>
+                </div>
+              </label>
+            )}
+
             <div className="pt-4">
-              <button 
+              <button
                 type="submit"
                 className={`w-full py-3 rounded-xl font-bold text-white shadow-lg transition-all active:scale-95 ${
-                   bookingType === 'one-off' && oneOffSubtype === 'absence' ? 'bg-red-600 hover:bg-red-700 shadow-red-100' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100'
+                   isAbsence ? 'bg-red-600 hover:bg-red-700 shadow-red-100' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100'
                 }`}
               >
-                שמור {bookingType === 'fixed' ? 'משמרת קבועה' : oneOffSubtype === 'absence' ? 'היעדרות' : 'שיבוץ'}
+                שמור {bookingType === 'fixed' ? 'משמרת קבועה' : isAbsence ? 'היעדרות' : 'שיבוץ'}
               </button>
             </div>
           </form>

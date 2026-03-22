@@ -111,7 +111,8 @@ export const mergeSchedules = (
           title: 'משמרת קבועה',
           type: 'fixed',
           start: seg.start,
-          end: seg.end
+          end: seg.end,
+          hasParking: fixed.hasParking || false
         });
       });
     });
@@ -125,9 +126,10 @@ export const mergeSchedules = (
         roomId: room.id,
         title: oneOff.type === 'absence' ? 'היעדרות' : 'הזמנה חד-פעמית',
         type: 'one-off',
-        subType: oneOff.type || 'booking', // Pass subType (booking or absence)
+        subType: oneOff.type || 'booking',
         start: setTime(currentDate, oneOff.startTime),
-        end: setTime(currentDate, oneOff.endTime)
+        end: setTime(currentDate, oneOff.endTime),
+        hasParking: oneOff.hasParking || false
       });
     });
   });
