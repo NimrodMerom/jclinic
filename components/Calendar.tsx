@@ -134,7 +134,7 @@ export const Calendar: React.FC<CalendarProps> = ({
         )}
 
         <div className="overflow-x-auto flex-1 flex flex-col">
-          <div className={`flex border-b border-gray-200 bg-gray-50 ${rooms.length > 2 ? 'min-w-[500px]' : ''}`}>
+          <div className={`flex border-b border-gray-200 bg-gray-50 ${rooms.length > 2 ? 'min-w-[500px] w-max' : ''}`}>
             <div className="w-16 md:w-20 flex-shrink-0 border-l border-gray-200 bg-gray-50 flex items-center justify-center p-2">
                <Clock className="text-gray-400" size={20} />
             </div>
@@ -145,8 +145,8 @@ export const Calendar: React.FC<CalendarProps> = ({
             ))}
           </div>
 
-          <div className="flex-1 overflow-y-auto relative">
-            <div className={`flex ${rooms.length > 2 ? 'min-w-[500px]' : ''}`} style={{ minHeight: `${timeSlots.length * 40}px` }}>
+          <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
+            <div className={`flex ${rooms.length > 2 ? 'min-w-[500px] w-max' : 'w-full'}`} style={{ minHeight: `${timeSlots.length * 40}px` }}>
               <div className="w-16 md:w-20 flex-shrink-0 bg-gray-50 border-l border-gray-200 text-xs text-gray-500 font-medium select-none">
                 {timeSlots.map((time, i) => (
                   <div key={i} className="border-b border-gray-100 flex items-start justify-center pt-1" style={{ height: '40px' }}>
@@ -249,7 +249,7 @@ export const Calendar: React.FC<CalendarProps> = ({
         </div>
 
         <div className="overflow-x-auto flex-1 flex flex-col">
-          <div className="flex border-b border-gray-200 bg-gray-50 min-w-[600px]">
+          <div className="flex border-b border-gray-200 bg-gray-50 min-w-[600px] w-max">
             <div className="w-14 md:w-16 flex-shrink-0 border-l border-gray-200 bg-gray-50 flex items-center justify-center p-2">
               <Clock className="text-gray-400" size={18} />
             </div>
@@ -268,8 +268,8 @@ export const Calendar: React.FC<CalendarProps> = ({
             })}
           </div>
 
-          <div className="flex-1 overflow-y-auto relative">
-            <div className="flex min-w-[600px]" style={{ minHeight: `${timeSlots.length * 32}px` }}>
+          <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
+            <div className="flex min-w-[600px] w-max" style={{ minHeight: `${timeSlots.length * 32}px` }}>
               <div className="w-14 md:w-16 flex-shrink-0 bg-gray-50 border-l border-gray-200 text-[10px] text-gray-500 font-medium select-none">
                 {timeSlots.map((time, i) => (
                   <div key={i} className="border-b border-gray-100 flex items-start justify-center pt-0.5" style={{ height: '32px' }}>
