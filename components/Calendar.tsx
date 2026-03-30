@@ -133,20 +133,21 @@ export const Calendar: React.FC<CalendarProps> = ({
           </div>
         )}
 
-        <div className="overflow-x-auto flex-1 flex flex-col">
-          <div className={`flex border-b border-gray-200 bg-gray-50 ${rooms.length > 2 ? 'min-w-[500px] w-max' : ''}`}>
-            <div className="w-16 md:w-20 flex-shrink-0 border-l border-gray-200 bg-gray-50 flex items-center justify-center p-2">
-               <Clock className="text-gray-400" size={20} />
-            </div>
-            {rooms.map(room => (
-              <div key={room.id} className={`flex-1 p-2 md:p-3 text-center font-bold text-gray-700 border-l border-gray-200 last:border-l-0 text-sm md:text-base ${rooms.length > 2 ? 'min-w-[120px]' : ''}`}>
-                {room.name}
+        <div className="overflow-x-auto flex-1">
+          <div className={`flex flex-col ${rooms.length > 2 ? 'min-w-[600px]' : 'min-w-full'}`} style={{ width: rooms.length > 2 ? 'max-content' : '100%' }}>
+            <div className="flex border-b border-gray-200 bg-gray-50">
+              <div className="w-16 md:w-20 flex-shrink-0 border-l border-gray-200 bg-gray-50 flex items-center justify-center p-2">
+                 <Clock className="text-gray-400" size={20} />
               </div>
-            ))}
-          </div>
+              {rooms.map(room => (
+                <div key={room.id} className={`flex-1 p-2 md:p-3 text-center font-bold text-gray-700 border-l border-gray-200 last:border-l-0 text-sm md:text-base ${rooms.length > 2 ? 'min-w-[140px]' : ''}`}>
+                  {room.name}
+                </div>
+              ))}
+            </div>
 
-          <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
-            <div className={`flex ${rooms.length > 2 ? 'min-w-[500px] w-max' : 'w-full'}`} style={{ minHeight: `${timeSlots.length * 40}px` }}>
+            <div className="flex-1 overflow-y-auto relative">
+              <div className="flex" style={{ minHeight: `${timeSlots.length * 40}px` }}>
               <div className="w-16 md:w-20 flex-shrink-0 bg-gray-50 border-l border-gray-200 text-xs text-gray-500 font-medium select-none">
                 {timeSlots.map((time, i) => (
                   <div key={i} className="border-b border-gray-100 flex items-start justify-center pt-1" style={{ height: '40px' }}>
@@ -155,7 +156,7 @@ export const Calendar: React.FC<CalendarProps> = ({
                 ))}
               </div>
               {rooms.map((room) => (
-                <div key={room.id} className={`flex-1 relative border-l border-gray-200 last:border-l-0 bg-white group hover:bg-gray-50/50 transition-colors ${rooms.length > 2 ? 'min-w-[120px]' : ''}`}>
+                <div key={room.id} className={`flex-1 relative border-l border-gray-200 last:border-l-0 bg-white group hover:bg-gray-50/50 transition-colors ${rooms.length > 2 ? 'min-w-[140px]' : ''}`}>
                   {timeSlots.map((_, i) => (
                      <div key={i} className="w-full border-b border-gray-100" style={{ height: '40px' }}></div>
                   ))}
@@ -218,6 +219,7 @@ export const Calendar: React.FC<CalendarProps> = ({
               ))}
             </div>
           </div>
+          </div>
         </div>
         <div className="p-2 md:p-3 bg-gray-50 border-t border-gray-200 flex gap-3 md:gap-6 text-xs md:text-sm flex-wrap">
            <div className="flex items-center gap-1.5 md:gap-2">
@@ -248,28 +250,30 @@ export const Calendar: React.FC<CalendarProps> = ({
           <span>←</span> גלול הצידה לראות את כל הימים <span>→</span>
         </div>
 
-        <div className="overflow-x-auto flex-1 flex flex-col">
-          <div className="flex border-b border-gray-200 bg-gray-50 min-w-[600px] w-max">
-            <div className="w-14 md:w-16 flex-shrink-0 border-l border-gray-200 bg-gray-50 flex items-center justify-center p-2">
-              <Clock className="text-gray-400" size={18} />
+        <div className="overflow-x-auto flex-1">
+          <div className="flex flex-col min-w-[600px]" style={{ width: 'max-content' }}>
+            <div className="flex border-b border-gray-200 bg-gray-50">
+              <div className="w-14 md:w-16 flex-shrink-0 border-l border-gray-200 bg-gray-50 flex items-center justify-center p-2">
+                <Clock className="text-gray-400" size={18} />
+              </div>
+              {weekDays.map((day, i) => {
+                const isToday = day.toDateString() === new Date().toDateString();
+                return (
+                  <div
+                    key={i}
+                    className="flex-1 min-w-[80px] p-2 text-center border-l border-gray-200 last:border-l-0 cursor-pointer hover:bg-indigo-50 transition-colors"
+                    style={{ backgroundColor: isToday ? '#EEF2FF' : undefined }}
+                    onClick={() => { onDateSelect(day); onViewChange('day'); }}
+                  >
+                    <div className="text-xs text-gray-500 font-medium">{WEEK_DAYS_HE[day.getDay()]}</div>
+                    <div className={`text-base md:text-lg font-bold ${isToday ? 'text-indigo-600' : 'text-gray-700'}`}>{day.getDate()}</div>
+                  </div>
+                );
+              })}
             </div>
-            {weekDays.map((day, i) => {
-              const isToday = day.toDateString() === new Date().toDateString();
-              return (
-                <div
-                  key={i}
-                  className={`flex-1 min-w-[70px] p-2 text-center border-l border-gray-200 last:border-l-0 cursor-pointer hover:bg-indigo-50 transition-colors ${isToday ? 'bg-indigo-50' : ''}`}
-                  onClick={() => { onDateSelect(day); onViewChange('day'); }}
-                >
-                  <div className="text-xs text-gray-500 font-medium">{WEEK_DAYS_HE[day.getDay()]}</div>
-                  <div className={`text-base md:text-lg font-bold ${isToday ? 'text-indigo-600' : 'text-gray-700'}`}>{day.getDate()}</div>
-                </div>
-              );
-            })}
-          </div>
 
-          <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
-            <div className="flex min-w-[600px] w-max" style={{ minHeight: `${timeSlots.length * 32}px` }}>
+            <div className="flex-1 overflow-y-auto relative">
+              <div className="flex" style={{ minHeight: `${timeSlots.length * 32}px` }}>
               <div className="w-14 md:w-16 flex-shrink-0 bg-gray-50 border-l border-gray-200 text-[10px] text-gray-500 font-medium select-none">
                 {timeSlots.map((time, i) => (
                   <div key={i} className="border-b border-gray-100 flex items-start justify-center pt-0.5" style={{ height: '32px' }}>
@@ -283,7 +287,7 @@ export const Calendar: React.FC<CalendarProps> = ({
                 return (
                   <div
                     key={dayIndex}
-                    className={`flex-1 min-w-[70px] relative border-l border-gray-200 last:border-l-0 transition-colors ${isToday ? 'bg-indigo-50/30' : 'bg-white'}`}
+                    className={`flex-1 min-w-[80px] relative border-l border-gray-200 last:border-l-0 transition-colors ${isToday ? 'bg-indigo-50/30' : 'bg-white'}`}
                   >
                     {timeSlots.map((_, i) => (
                       <div key={i} className="w-full border-b border-gray-100" style={{ height: '32px' }}></div>
@@ -330,6 +334,7 @@ export const Calendar: React.FC<CalendarProps> = ({
                 );
               })}
             </div>
+          </div>
           </div>
         </div>
         <div className="p-2 bg-gray-50 border-t border-gray-200 flex gap-4 text-xs flex-wrap">
