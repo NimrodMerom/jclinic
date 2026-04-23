@@ -124,30 +124,29 @@ export const Calendar: React.FC<CalendarProps> = ({
   // --- RENDERING ---
 
   if (viewMode === 'day') {
+    const minWidth = rooms.length > 2 ? '640px' : '100%';
     return (
       <div className="flex flex-col h-full bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        {/* Horizontal scroll hint for mobile when multiple rooms */}
         {rooms.length > 2 && (
           <div className="md:hidden bg-indigo-50 text-indigo-600 text-xs text-center py-1.5 font-medium border-b border-indigo-100 flex items-center justify-center gap-2">
             <span>←</span> גלול הצידה לראות את כל החדרים <span>→</span>
           </div>
         )}
 
-        <div className="overflow-x-auto flex-1">
-          <div className={`flex flex-col ${rooms.length > 2 ? 'min-w-[600px]' : 'min-w-full'}`} style={{ width: rooms.length > 2 ? 'max-content' : '100%' }}>
-            <div className="flex border-b border-gray-200 bg-gray-50">
+        <div className="flex-1 overflow-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div style={{ minWidth, width: rooms.length > 2 ? 'max-content' : '100%' }}>
+            <div className="flex sticky top-0 z-30 bg-gray-50 border-b border-gray-200">
               <div className="w-16 md:w-20 flex-shrink-0 border-l border-gray-200 bg-gray-50 flex items-center justify-center p-2">
                  <Clock className="text-gray-400" size={20} />
               </div>
               {rooms.map(room => (
-                <div key={room.id} className={`flex-1 p-2 md:p-3 text-center font-bold text-gray-700 border-l border-gray-200 last:border-l-0 text-sm md:text-base ${rooms.length > 2 ? 'min-w-[140px]' : ''}`}>
+                <div key={room.id} className={`flex-1 p-2 md:p-3 text-center font-bold text-gray-700 border-l border-gray-200 last:border-l-0 text-sm md:text-base bg-gray-50 ${rooms.length > 2 ? 'min-w-[140px]' : ''}`}>
                   {room.name}
                 </div>
               ))}
             </div>
 
-            <div className="flex-1 overflow-y-auto relative">
-              <div className="flex" style={{ minHeight: `${timeSlots.length * 40}px` }}>
+            <div className="flex" style={{ minHeight: `${timeSlots.length * 40}px` }}>
               <div className="w-16 md:w-20 flex-shrink-0 bg-gray-50 border-l border-gray-200 text-xs text-gray-500 font-medium select-none">
                 {timeSlots.map((time, i) => (
                   <div key={i} className="border-b border-gray-100 flex items-start justify-center pt-1" style={{ height: '40px' }}>
@@ -164,7 +163,6 @@ export const Calendar: React.FC<CalendarProps> = ({
                       const therapist = getTherapist(event.therapistId);
                       const isOneOff = event.type === 'one-off';
                       const isAbsence = event.subType === 'absence';
-                      // Extract only background and border classes from therapist color, use fixed dark text
                       const colorParts = (therapist?.color || 'bg-gray-100 border-gray-500').split(' ');
                       const bgBorderClasses = colorParts.filter(c => c.startsWith('bg-') || c.startsWith('border-')).join(' ');
                       let borderClasses = '';
@@ -175,12 +173,11 @@ export const Calendar: React.FC<CalendarProps> = ({
                       } else if (isOneOff) {
                         borderClasses = 'ring-2 ring-indigo-500 ring-offset-1 z-20';
                       }
-                      const totalDayMinutes = (CLOSING_HOUR - OPENING_HOUR) * 60;
                       const dayStart = new Date(currentDate);
                       dayStart.setHours(OPENING_HOUR, 0, 0, 0);
                       const startMins = getDifferenceInMinutes(event.start, dayStart);
                       const durationMins = getDifferenceInMinutes(event.end, event.start);
-                      const topPx = (startMins / 30) * 40; // 40px per 30 min slot
+                      const topPx = (startMins / 30) * 40;
                       const heightPx = (durationMins / 30) * 40;
                       return (
                         <div
@@ -197,7 +194,7 @@ export const Calendar: React.FC<CalendarProps> = ({
                             </span>
                             <div className="flex items-center gap-1">
                               {event.hasParking && !isAbsence && (
-                                <Car size={11} className="text-indigo-500 flex-shrink-0" title="חניה" />
+                                <Car size={11} className="text-indigo-500 flex-shrink-0" />
                               )}
                               {isAbsence ? (
                                  <UserX size={14} className="text-red-500 flex-shrink-0" />
@@ -218,7 +215,6 @@ export const Calendar: React.FC<CalendarProps> = ({
                 </div>
               ))}
             </div>
-          </div>
           </div>
         </div>
         <div className="p-2 md:p-3 bg-gray-50 border-t border-gray-200 flex gap-3 md:gap-6 text-xs md:text-sm flex-wrap">
@@ -250,9 +246,9 @@ export const Calendar: React.FC<CalendarProps> = ({
           <span>←</span> גלול הצידה לראות את כל הימים <span>→</span>
         </div>
 
-        <div className="overflow-x-auto flex-1">
-          <div className="flex flex-col min-w-[600px]" style={{ width: 'max-content' }}>
-            <div className="flex border-b border-gray-200 bg-gray-50">
+        <div className="flex-1 overflow-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div style={{ minWidth: '640px', width: 'max-content' }}>
+            <div className="flex sticky top-0 z-30 bg-gray-50 border-b border-gray-200">
               <div className="w-14 md:w-16 flex-shrink-0 border-l border-gray-200 bg-gray-50 flex items-center justify-center p-2">
                 <Clock className="text-gray-400" size={18} />
               </div>
@@ -261,7 +257,7 @@ export const Calendar: React.FC<CalendarProps> = ({
                 return (
                   <div
                     key={i}
-                    className="flex-1 min-w-[80px] p-2 text-center border-l border-gray-200 last:border-l-0 cursor-pointer hover:bg-indigo-50 transition-colors"
+                    className="flex-1 min-w-[80px] p-2 text-center border-l border-gray-200 last:border-l-0 cursor-pointer hover:bg-indigo-50 transition-colors bg-gray-50"
                     style={{ backgroundColor: isToday ? '#EEF2FF' : undefined }}
                     onClick={() => { onDateSelect(day); onViewChange('day'); }}
                   >
@@ -272,8 +268,7 @@ export const Calendar: React.FC<CalendarProps> = ({
               })}
             </div>
 
-            <div className="flex-1 overflow-y-auto relative">
-              <div className="flex" style={{ minHeight: `${timeSlots.length * 32}px` }}>
+            <div className="flex" style={{ minHeight: `${timeSlots.length * 32}px` }}>
               <div className="w-14 md:w-16 flex-shrink-0 bg-gray-50 border-l border-gray-200 text-[10px] text-gray-500 font-medium select-none">
                 {timeSlots.map((time, i) => (
                   <div key={i} className="border-b border-gray-100 flex items-start justify-center pt-0.5" style={{ height: '32px' }}>
@@ -297,7 +292,6 @@ export const Calendar: React.FC<CalendarProps> = ({
                       const room = getRoom(event.roomId);
                       const isOneOff = event.type === 'one-off';
                       const isAbsence = event.subType === 'absence';
-                      // Extract only background and border classes, use fixed dark text
                       const colorParts = (therapist?.color || 'bg-gray-100 border-gray-500').split(' ');
                       const bgBorderClasses = colorParts.filter(c => c.startsWith('bg-') || c.startsWith('border-')).join(' ');
                       let borderClasses = '';
@@ -312,7 +306,7 @@ export const Calendar: React.FC<CalendarProps> = ({
                       dayStart.setHours(OPENING_HOUR, 0, 0, 0);
                       const startMins = getDifferenceInMinutes(event.start, dayStart);
                       const durationMins = getDifferenceInMinutes(event.end, event.start);
-                      const topPx = (startMins / 30) * 32; // 32px per 30 min slot
+                      const topPx = (startMins / 30) * 32;
                       const heightPx = (durationMins / 30) * 32;
                       return (
                         <div
@@ -334,7 +328,6 @@ export const Calendar: React.FC<CalendarProps> = ({
                 );
               })}
             </div>
-          </div>
           </div>
         </div>
         <div className="p-2 bg-gray-50 border-t border-gray-200 flex gap-4 text-xs flex-wrap">
