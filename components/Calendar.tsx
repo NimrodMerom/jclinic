@@ -135,7 +135,7 @@ export const Calendar: React.FC<CalendarProps> = ({
 
         <div className="flex-1 overflow-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
           <div style={{ minWidth, width: rooms.length > 2 ? 'max-content' : '100%' }}>
-            <div className="flex sticky top-0 z-30 bg-gray-50 border-b border-gray-200">
+            <div className="flex bg-gray-50 border-b border-gray-200">
               <div className="w-16 md:w-20 flex-shrink-0 border-l border-gray-200 bg-gray-50 flex items-center justify-center p-2">
                  <Clock className="text-gray-400" size={20} />
               </div>
@@ -248,7 +248,7 @@ export const Calendar: React.FC<CalendarProps> = ({
 
         <div className="flex-1 overflow-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
           <div style={{ minWidth: '640px', width: 'max-content' }}>
-            <div className="flex sticky top-0 z-30 bg-gray-50 border-b border-gray-200">
+            <div className="flex bg-gray-50 border-b border-gray-200">
               <div className="w-14 md:w-16 flex-shrink-0 border-l border-gray-200 bg-gray-50 flex items-center justify-center p-2">
                 <Clock className="text-gray-400" size={18} />
               </div>
