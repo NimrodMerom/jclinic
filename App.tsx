@@ -87,6 +87,8 @@ const App: React.FC = () => {
   // שימוש ב-Ref כדי למנוע דריסה של הנתונים בזמן שאנחנו מבצעים פעולת כתיבה
   const syncLockRef = useRef<number>(0);
   const therapistsRef = useRef(therapists);
+  const fixedShiftsRef = useRef(fixedShifts);
+  const oneOffBookingsRef = useRef(oneOffBookings);
 
   useEffect(() => {
     therapistsRef.current = therapists;
@@ -94,10 +96,12 @@ const App: React.FC = () => {
   }, [therapists]);
 
   useEffect(() => {
+    fixedShiftsRef.current = fixedShifts;
     localStorage.setItem('clinic_fixed_shifts', JSON.stringify(fixedShifts));
   }, [fixedShifts]);
 
   useEffect(() => {
+    oneOffBookingsRef.current = oneOffBookings;
     localStorage.setItem('clinic_one_off_bookings', JSON.stringify(oneOffBookings));
   }, [oneOffBookings]);
 
@@ -118,16 +122,51 @@ const App: React.FC = () => {
       const cloudFixed = await db.getFixedShifts();
       const cloudOneOffs = await db.getOneOffBookings();
 
-      // Only update state after ALL loads succeed
+      // On initial (non-silent) load: if cloud is empty but local has data,
+      // push local to cloud (first-time sync). This prevents wiping local shifts
+      // when connecting to an empty cloud or when previous saves silently failed.
+      // On silent (realtime subscription) updates: trust cloud as source of truth.
+      const isInitialLoad = !silent;
+
+      // Therapists
       if (cloudTherapists.length > 0) {
         setTherapists(cloudTherapists);
         console.log("Loaded therapists from cloud:", cloudTherapists.length);
+      } else if (isInitialLoad && therapistsRef.current.length > 0) {
+        console.warn("Cloud empty on initial load - pushing local therapists to cloud");
+        for (const t of therapistsRef.current) {
+          try { await db.saveTherapist(t); } catch (err) { console.error("Failed to sync therapist:", err); }
+        }
       } else {
-        console.warn("No therapists found in cloud - keeping local data");
+        setTherapists([]);
       }
 
-      setFixedShifts(cloudFixed);
-      setOneOffBookings(cloudOneOffs);
+      // Fixed shifts
+      if (cloudFixed.length > 0) {
+        setFixedShifts(cloudFixed);
+        console.log("Loaded fixed shifts from cloud:", cloudFixed.length);
+      } else if (isInitialLoad && fixedShiftsRef.current.length > 0) {
+        console.warn("Cloud empty on initial load - pushing local fixed shifts to cloud");
+        for (const s of fixedShiftsRef.current) {
+          try { await db.saveFixedShift(s); } catch (err) { console.error("Failed to sync fixed shift:", err); }
+        }
+      } else {
+        setFixedShifts([]);
+      }
+
+      // One-off bookings
+      if (cloudOneOffs.length > 0) {
+        setOneOffBookings(cloudOneOffs);
+        console.log("Loaded one-off bookings from cloud:", cloudOneOffs.length);
+      } else if (isInitialLoad && oneOffBookingsRef.current.length > 0) {
+        console.warn("Cloud empty on initial load - pushing local one-off bookings to cloud");
+        for (const b of oneOffBookingsRef.current) {
+          try { await db.saveOneOffBooking(b); } catch (err) { console.error("Failed to sync one-off booking:", err); }
+        }
+      } else {
+        setOneOffBookings([]);
+      }
+
       setSyncWarning(false);
     } catch (e: any) {
       console.error("Cloud load failed:", e);
